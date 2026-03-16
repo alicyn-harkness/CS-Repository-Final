@@ -160,7 +160,10 @@ function analyze(rows, reportDate) {
   const ref=pd(reportDate)||new Date();
   const rm=ref.getMonth(), ry=ref.getFullYear();
 
-  const allActive=rows.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("active"));
+  const allActive=rows.filter(r=>{
+    const s=fv(r,"Client Status","status").toLowerCase();
+    return s.includes("active") && !s.includes("inactive");
+  });
 
   const renewalRows=allActive.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d<=ref;});
   const renewalTypes={};
