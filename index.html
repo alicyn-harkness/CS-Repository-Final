@@ -33,7 +33,7 @@
   .sec-body{padding:14px 16px;background:#fff;}
   .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;}
   .row .lbl{font-size:13px;color:#222;}
-  .row .val{font-weight:700;font-size:13px;}
+  .row .val{font-weight:700;font-size:13px;text-align:right;padding-left:16px;}
   .row.indent .lbl{padding-left:16px;color:#555;}
   .subhead{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;}
   .client-item{font-size:13px;padding:2px 0;border-bottom:1px solid #f5f5f5;}
@@ -41,19 +41,6 @@
   .none{font-size:13px;color:#999;}
   .summary-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
   .summary-header h2{font-size:16px;font-weight:700;color:#1a2e5a;}
-  /* Modal */
-  .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;}
-  .modal-overlay.open{display:flex;}
-  .modal{background:#fff;border-radius:12px;padding:24px;max-width:640px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;}
-  .modal h3{font-size:15px;font-weight:700;color:#1a2e5a;}
-  .modal p{font-size:12px;color:#666;}
-  .modal textarea{width:100%;height:300px;font-family:monospace;font-size:12px;padding:10px;border-radius:8px;border:1px solid #ccd;resize:none;flex:1;}
-  .modal-btns{display:flex;gap:10px;justify-content:flex-end;}
-  .modal-btn{padding:9px 20px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:600;}
-  .modal-btn.close{background:#f0f0f0;color:#333;}
-  .modal-btn.copy{background:#1a2e5a;color:#fff;}
-  .copy-success{font-size:12px;color:#2a8a2a;align-self:center;}
-  @media print{.export-bar,.btn-primary,.btn-secondary,.modal-overlay{display:none!important;}}
 </style>
 </head>
 <body>
@@ -63,7 +50,6 @@
     <p>Paste your report CSV → instantly generate your meeting summary</p>
   </div>
 
-  <!-- Input Panel -->
   <div id="inputPanel" class="card">
     <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;">
       <div>
@@ -81,19 +67,14 @@
     <button class="btn-primary" onclick="generate()">⚡ Generate Summary</button>
   </div>
 
-  <!-- Summary Panel -->
   <div id="summaryPanel" style="display:none;">
     <div class="summary-header">
-      <div>
-        <h2 id="summaryTitle">Summary</h2>
-      </div>
+      <h2 id="summaryTitle">Summary</h2>
       <button class="btn-secondary" onclick="reset()">← New Report</button>
     </div>
-
-    <!-- Export Bar -->
     <div class="export-bar">
       <h3>📤 Export / Save Options</h3>
-      <div class="export-note">💡 All files download directly — open CSV or TSV in Excel/Sheets, open PDF in your browser to print.</div>
+      <div class="export-note">💡 All files download directly — open TSV in Excel/Sheets, open the PDF file in your browser to print.</div>
       <div class="export-btns">
         <button class="exp-btn" onclick="downloadText()">📄 Download as Text</button>
         <button class="exp-btn" onclick="downloadTable()">📊 Download as Table (Sheets/Excel)</button>
@@ -101,288 +82,327 @@
         <button class="exp-btn primary-export" onclick="downloadPDF()">🖨 Download as PDF</button>
       </div>
     </div>
-
     <div id="summaryContent"></div>
   </div>
 </div>
 
-<!-- Copy Modal -->
-<div class="modal-overlay" id="copyModal">
-  <div class="modal">
-    <h3 id="modalTitle">Copy Text</h3>
-    <p id="modalInstructions">Press <strong>Ctrl+A</strong> to select all, then <strong>Ctrl+C</strong> to copy. Then paste wherever you need it.</p>
-    <textarea id="modalText" readonly onclick="this.select()"></textarea>
-    <div class="modal-btns">
-      <span id="copySuccess" class="copy-success" style="display:none;">✓ Copied!</span>
-      <button class="modal-btn copy" onclick="tryCopy()">📋 Copy All</button>
-      <button class="modal-btn close" onclick="closeModal()">Close</button>
-    </div>
-  </div>
-</div>
-
 <script>
-let G = null, G_date = "";
+var G = null;
+var G_date = "";
 
 // ── CSV Parser ────────────────────────────────────────────────────────────────
 function parseCSV(text) {
-  if (!text.trim()) return {headers:[],rows:[]};
-  const lines = text.trim().split(/\r?\n/);
-  const headers = splitLine(lines[0]);
-  const rows = lines.slice(1).map(line => {
-    const vals = splitLine(line);
-    const obj = {};
-    headers.forEach((h,i) => obj[h.trim()] = (vals[i]||"").trim());
-    return obj;
-  }).filter(r => Object.values(r).some(v=>v));
-  return {headers, rows};
+  if (!text || !text.trim()) return {headers:[], rows:[]};
+  var lines = text.trim().split(/\r?\n/);
+  var headers = splitLine(lines[0]);
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var vals = splitLine(lines[i]);
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j].trim()] = (vals[j] || "").trim();
+    }
+    var hasVal = false;
+    for (var k in obj) { if (obj[k]) { hasVal = true; break; } }
+    if (hasVal) rows.push(obj);
+  }
+  return {headers: headers, rows: rows};
 }
+
 function splitLine(line) {
-  const vals=[]; let cur="", inQ=false;
-  for (let c of line) {
-    if (c==='"') inQ=!inQ;
-    else if ((c===','||c==='\t')&&!inQ){vals.push(cur.trim().replace(/^"|"$/g,""));cur="";}
-    else cur+=c;
+  var vals = [], cur = "", inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if ((c === ',' || c === '\t') && !inQ) { vals.push(cur.trim().replace(/^"|"$/g,"")); cur = ""; }
+    else { cur += c; }
   }
   vals.push(cur.trim().replace(/^"|"$/g,""));
   return vals;
 }
-function fv(row, ...keys) {
-  for (const k of keys) {
-    const found = Object.keys(row).find(h=>h.toLowerCase().includes(k.toLowerCase()));
-    if (found!==undefined && row[found]!==undefined) return row[found];
+
+function fv(row) {
+  var keys = Array.prototype.slice.call(arguments, 1);
+  for (var ki = 0; ki < keys.length; ki++) {
+    var k = keys[ki].toLowerCase();
+    var rowKeys = Object.keys(row);
+    for (var ri = 0; ri < rowKeys.length; ri++) {
+      if (rowKeys[ri].toLowerCase().indexOf(k) !== -1 && row[rowKeys[ri]]) {
+        return row[rowKeys[ri]];
+      }
+    }
   }
   return "";
 }
-function pd(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
+
+function pd(s) {
+  if (!s) return null;
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isActive(row) {
+  var s = fv(row, "Client Status", "status").toLowerCase();
+  return s.indexOf("active") !== -1 && s.indexOf("inactive") === -1;
+}
 
 // ── Analysis ──────────────────────────────────────────────────────────────────
 function analyze(rows, reportDate) {
-  const ref=pd(reportDate)||new Date();
-  const rm=ref.getMonth(), ry=ref.getFullYear();
+  var ref = pd(reportDate) || new Date();
+  var rm = ref.getMonth();
+  var ry = ref.getFullYear();
 
-  const allActive=rows.filter(r=>{
-    const s=fv(r,"Client Status","status").toLowerCase();
-    return s.includes("active") && !s.includes("inactive");
+  // Active clients only (excludes inactive)
+  var activeRows = rows.filter(function(r) { return isActive(r); });
+
+  // 1. Renewals — active only, next renewal on or before report date
+  var renewalRows = activeRows.filter(function(r) {
+    var d = pd(fv(r, "Next Renewal Date", "Next Renewal"));
+    return d && d <= ref;
+  });
+  var renewalTypes = {};
+  renewalRows.forEach(function(r) {
+    var policy = fv(r, "Renewal Policy", "policy") || "";
+    var m = policy.match(/(\d+)\/(\d+)/);
+    var type = m ? (m[1] + "mo") : "Other";
+    var isH = fv(r, "Client Status", "status").toLowerCase().indexOf("hosting") !== -1;
+    var key = isH ? (type + " Hosting") : type;
+    renewalTypes[key] = (renewalTypes[key] || 0) + 1;
   });
 
-  const renewalRows=allActive.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d<=ref;});
-  const renewalTypes={};
-  renewalRows.forEach(r=>{
-    const policy=fv(r,"Renewal Policy","policy")||"";
-    const m=policy.match(/(\d+)\/(\d+)/);
-    const type=m?`${m[1]}mo`:"Other";
-    const isH=fv(r,"Client Status","status").toLowerCase().includes("hosting");
-    const key=isH?`${type} Hosting`:type;
-    renewalTypes[key]=(renewalTypes[key]||0)+1;
+  // 2. Terminations — ALL rows, filtered to report month
+  var termRows = rows.filter(function(r) {
+    var d = pd(fv(r, "Effective Date of Termination", "Termination Date"));
+    return d && d.getMonth() === rm && d.getFullYear() === ry;
+  });
+  var termTypes = {};
+  termRows.forEach(function(r) {
+    var reason = fv(r, "Termination Reason", "Lost To", "reason") || fv(r, "Client Status", "status") || "Unknown";
+    termTypes[reason] = (termTypes[reason] || 0) + 1;
   });
 
-  const termRows=rows.filter(r=>{const d=pd(fv(r,"Effective Date of Termination","Termination Date"));return d&&d.getMonth()===rm&&d.getFullYear()===ry;});
-  const termTypes={};
-  termRows.forEach(r=>{
-    const reason=fv(r,"Termination Reason","Lost To","reason")||fv(r,"Client Status","status")||"Unknown";
-    termTypes[reason]=(termTypes[reason]||0)+1;
+  // 4. Support — active only
+  var pastDeadline = 0, onePerWeek = 0, supportPackage = 0, bankedHours = 0;
+  activeRows.forEach(function(r) {
+    var s = fv(r, "Support Call Status", "Support Status").toLowerCase();
+    var dl = pd(fv(r, "Last Support Deadline Date", "Support Deadline"));
+    if (dl && dl < ref) pastDeadline++;
+    if (s.indexOf("1 time per week") !== -1 || s.indexOf("one time per week") !== -1) onePerWeek++;
+    if (s.indexOf("support package") !== -1) supportPackage++;
+    if (s.indexOf("banked") !== -1) bankedHours++;
   });
 
-  const activeRows=allActive;
-  let pastDeadline=0,onePerWeek=0,supportPackage=0,bankedHours=0;
-  activeRows.forEach(r=>{
-    const s=fv(r,"Support Call Status","Support Status").toLowerCase();
-    const dl=pd(fv(r,"Last Support Deadline Date","Support Deadline"));
-    if(dl&&dl<ref) pastDeadline++;
-    if(s.includes("1 time per week")||s.includes("one time per week")) onePerWeek++;
-    if(s.includes("support package")) supportPackage++;
-    if(s.includes("banked")) bankedHours++;
-  });
+  // 5. Client breakdown — active only
+  var regular = activeRows.filter(function(r) { return fv(r, "Client Status", "status").toLowerCase() === "active"; });
+  var hosting = activeRows.filter(function(r) { return fv(r, "Client Status", "status").toLowerCase().indexOf("hosting only") !== -1; });
+  var impl = activeRows.filter(function(r) { return fv(r, "Client Status", "status").toLowerCase().indexOf("implementation") !== -1; });
 
-  const allActive=rows.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("active"));
-  const regular=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase()==="active");
-  const hosting=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("hosting only"));
-  const impl=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("implementation"));
-  allActive.forEach(r=>{
-    const s=fv(r,"Client Status","status").toLowerCase();
-    const progs=fv(r,"Program Type(s)","Program Types","Program Type").split(";");
-    const states=fv(r,"State(s)","States","State").split(";");
-    progs.forEach(p=>{p=p.trim();if(!p)return;
-      if(!s.includes("hosting")&&!s.includes("implementation")) byProg[p]=(byProg[p]||0)+1;
-      if(s.includes("hosting")) hProg[p]=(hProg[p]||0)+1;
-      if(s.includes("implementation")) iProg[p]=(iProg[p]||0)+1;
+  var byProg={}, bySt={}, hProg={}, hSt={}, iProg={}, iSt={};
+  activeRows.forEach(function(r) {
+    var s = fv(r, "Client Status", "status").toLowerCase();
+    var isHosting = s.indexOf("hosting only") !== -1;
+    var isImpl = s.indexOf("implementation") !== -1;
+    var isRegular = !isHosting && !isImpl;
+    var progs = fv(r, "Program Type(s)", "Program Types", "Program Type").split(";");
+    var states = fv(r, "State(s)", "States", "State").split(";");
+    progs.forEach(function(p) {
+      p = p.trim(); if (!p) return;
+      if (isRegular) byProg[p] = (byProg[p]||0)+1;
+      if (isHosting) hProg[p] = (hProg[p]||0)+1;
+      if (isImpl)    iProg[p] = (iProg[p]||0)+1;
     });
-    states.forEach(st=>{st=st.trim();if(!st)return;
-      if(!s.includes("hosting")&&!s.includes("implementation")) bySt[st]=(bySt[st]||0)+1;
-      if(s.includes("hosting")) hSt[st]=(hSt[st]||0)+1;
-      if(s.includes("implementation")) iSt[st]=(iSt[st]||0)+1;
+    states.forEach(function(st) {
+      st = st.trim(); if (!st) return;
+      if (isRegular) bySt[st] = (bySt[st]||0)+1;
+      if (isHosting) hSt[st]  = (hSt[st]||0)+1;
+      if (isImpl)    iSt[st]  = (iSt[st]||0)+1;
     });
   });
 
-  const caseloads={};
-  allActive.forEach(r=>{
-    const rep=fv(r,"Primary Account Rep","Account Rep","Rep")||"Unknown";
-    const s=fv(r,"Client Status","status").toLowerCase();
-    if(!caseloads[rep]) caseloads[rep]={hosting:0,regular:0,handoff:0};
-    if(s.includes("hosting")) caseloads[rep].hosting++;
+  // 8. Caseloads — active only
+  var caseloads = {};
+  activeRows.forEach(function(r) {
+    var rep = fv(r, "Primary Account Rep", "Account Rep", "Rep") || "Unknown";
+    var s = fv(r, "Client Status", "status").toLowerCase();
+    if (!caseloads[rep]) caseloads[rep] = {hosting:0, regular:0, handoff:0};
+    if (s.indexOf("hosting") !== -1) caseloads[rep].hosting++;
     else caseloads[rep].regular++;
   });
-  rows.forEach(r=>{
-    const rep=fv(r,"Primary Account Rep","Account Rep","Rep")||"Unknown";
-    const ho=fv(r,"Implementation Hand-off Date","Estimated Hand-off","Hand-off Date");
-    if(ho&&caseloads[rep]) caseloads[rep].handoff++;
+  activeRows.forEach(function(r) {
+    var rep = fv(r, "Primary Account Rep", "Account Rep", "Rep") || "Unknown";
+    var ho = fv(r, "Implementation Hand-off Date", "Estimated Hand-off", "Hand-off Date");
+    if (ho && caseloads[rep]) caseloads[rep].handoff++;
   });
 
-  return {renewals:{rows:renewalRows,types:renewalTypes},terminations:{rows:termRows,types:termTypes},
-    support:{pastDeadline,onePerWeek,supportPackage,bankedHours},
-    clients:{total:regular.length+impl.length,hosting:hosting.length,impl:impl.length,byProg,bySt,hProg,hSt,iProg,iSt},
-    caseloads};
+  return {
+    renewals: {rows: renewalRows, types: renewalTypes},
+    terminations: {rows: termRows, types: termTypes},
+    support: {pastDeadline:pastDeadline, onePerWeek:onePerWeek, supportPackage:supportPackage, bankedHours:bankedHours},
+    clients: {total: regular.length + impl.length, hosting: hosting.length, impl: impl.length, byProg:byProg, bySt:bySt, hProg:hProg, hSt:hSt, iProg:iProg, iSt:iSt},
+    caseloads: caseloads
+  };
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
-function row(label,value,indent){return `<div class="row${indent?' indent':''}"><span class="lbl">${label}</span><span class="val">${value}</span></div>`;}
-function subhead(t){return `<div class="subhead">${t}</div>`;}
-function clientList(rows,repKey,reasonKey){
-  if(!rows.length) return `<div class="none">None for this period</div>`;
-  return rows.map(r=>{
-    const name=fv(r,"Organization Name","name");
-    const detail=repKey?fv(r,...repKey):reasonKey?fv(r,...reasonKey)||fv(r,"Client Status","status"):"";
-    return `<div class="client-item">• ${name}${detail?` <span>(${detail})</span>`:"" }</div>`;
+function mkRow(label, value, indent) {
+  return '<div class="row' + (indent ? ' indent' : '') + '"><span class="lbl">' + label + '</span><span class="val">' + value + '</span></div>';
+}
+function subhead(t) { return '<div class="subhead">' + t + '</div>'; }
+function mkSection(num, title, body) {
+  return '<div class="section"><div class="sec-header">' + num + '. ' + title + '</div><div class="sec-body">' + body + '</div></div>';
+}
+function objRows(obj, indent) {
+  var entries = Object.keys(obj).map(function(k) { return [k, obj[k]]; });
+  entries.sort(function(a,b) { return b[1]-a[1]; });
+  if (!entries.length) return '<div class="none">—</div>';
+  return entries.map(function(e) { return mkRow(e[0], e[1], indent); }).join("");
+}
+function clientList(rows, repKey, reasonKey) {
+  if (!rows.length) return '<div class="none">None for this period</div>';
+  return rows.map(function(r) {
+    var name = fv(r, "Organization Name", "name");
+    var detail = repKey ? fv(r, repKey) : (fv(r, "Termination Reason", "Lost To", "reason") || fv(r, "Client Status", "status"));
+    return '<div class="client-item">• ' + name + (detail ? ' <span>(' + detail + ')</span>' : '') + '</div>';
   }).join("");
 }
-function section(num,title,body){return `<div class="section"><div class="sec-header">${num}. ${title}</div><div class="sec-body">${body}</div></div>`;}
-function objRows(obj,indent){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>row(k,v,indent)).join("")||`<div class="none">—</div>`;}
 
-function renderSummary(r){
-  let html="";
-  html+=section(1,"Renewals",
-    row("Total Clients Renewed",`${r.renewals.rows.length} Clients`)+
-    row("Renewal Type(s)",Object.entries(r.renewals.types).map(([k,v])=>`${v} ${k}`).join(", ")||"—")+
-    subhead("Renewal Clients")+clientList(r.renewals.rows,["Primary Account Rep","Account Rep"]));
-  html+=section(2,"Terminations",
-    row("Total Clients Terminated",r.terminations.rows.length)+
-    row("Termination Type(s)",Object.keys(r.terminations.types).length?Object.entries(r.terminations.types).map(([k,v])=>`${k}${v>1?` (${v})`:""}`).join("; "):"NA")+
-    subhead("Termination Clients")+clientList(r.terminations.rows,null,["Termination Reason","Lost To","reason"]));
-  html+=section(4,"Support",
-    row("Clients Past Support Deadline",r.support.pastDeadline)+
-    row("1 Time Per Week",r.support.onePerWeek)+
-    row("Support Package",r.support.supportPackage)+
-    row("Banked Hours",r.support.bankedHours));
-  html+=section(5,"Client Breakdown",
-    row("Total Clients - Active",r.clients.total)+
-    row("Total Clients - Hosting",r.clients.hosting)+
-    row("Total Clients - Implementations",r.clients.impl)+
-    subhead("Active by Program")+objRows(r.clients.byProg,true)+
-    subhead("Active by State")+objRows(r.clients.bySt,true)+
-    subhead("Hosting by Program")+objRows(r.clients.hProg,true)+
-    subhead("Hosting by State")+objRows(r.clients.hSt,true)+
-    subhead("Implementations by Program")+objRows(r.clients.iProg,true)+
-    subhead("Implementations by State")+objRows(r.clients.iSt,true));
-  html+=section(8,"Caseloads",
-    Object.entries(r.caseloads).sort((a,b)=>a[0].localeCompare(b[0]))
-      .map(([rep,c])=>row(rep,`${c.hosting>0?c.hosting+" Hosting, ":""}${c.regular} Regular, ${c.handoff} for Handoff`)).join(""));
+function renderSummary(r) {
+  var html = "";
+
+  // 1. Renewals
+  var renewalTypeStr = Object.keys(r.renewals.types).map(function(k) { return r.renewals.types[k] + " " + k; }).join(", ") || "—";
+  html += mkSection(1, "Renewals",
+    mkRow("Total Clients Renewed", r.renewals.rows.length + " Clients") +
+    mkRow("Renewal Type(s)", renewalTypeStr) +
+    subhead("Renewal Clients") +
+    clientList(r.renewals.rows, "Primary Account Rep"));
+
+  // 2. Terminations
+  var termTypeStr = Object.keys(r.terminations.types).length
+    ? Object.keys(r.terminations.types).map(function(k) { return k + (r.terminations.types[k] > 1 ? " (" + r.terminations.types[k] + ")" : ""); }).join("; ")
+    : "NA";
+  html += mkSection(2, "Terminations",
+    mkRow("Total Clients Terminated", r.terminations.rows.length) +
+    mkRow("Termination Type(s)", termTypeStr) +
+    subhead("Termination Clients") +
+    clientList(r.terminations.rows, null));
+
+  // 4. Support
+  html += mkSection(4, "Support",
+    mkRow("Clients Past Support Deadline", r.support.pastDeadline) +
+    mkRow("1 Time Per Week", r.support.onePerWeek) +
+    mkRow("Support Package", r.support.supportPackage) +
+    mkRow("Banked Hours", r.support.bankedHours));
+
+  // 5. Client Breakdown
+  html += mkSection(5, "Client Breakdown",
+    mkRow("Total Clients - Active", r.clients.total) +
+    mkRow("Total Clients - Hosting", r.clients.hosting) +
+    mkRow("Total Clients - Implementations", r.clients.impl) +
+    subhead("Active by Program") + objRows(r.clients.byProg, true) +
+    subhead("Active by State") + objRows(r.clients.bySt, true) +
+    subhead("Hosting by Program") + objRows(r.clients.hProg, true) +
+    subhead("Hosting by State") + objRows(r.clients.hSt, true) +
+    subhead("Implementations by Program") + objRows(r.clients.iProg, true) +
+    subhead("Implementations by State") + objRows(r.clients.iSt, true));
+
+  // 8. Caseloads
+  var caseHTML = Object.keys(r.caseloads).sort().map(function(rep) {
+    var c = r.caseloads[rep];
+    var val = (c.hosting > 0 ? c.hosting + " Hosting, " : "") + c.regular + " Regular, " + c.handoff + " for Handoff";
+    return mkRow(rep, val);
+  }).join("");
+  html += mkSection(8, "Caseloads", caseHTML);
+
   return html;
 }
 
 // ── Generate ──────────────────────────────────────────────────────────────────
-function generate(){
-  document.getElementById("errorMsg").textContent="";
-  const csv=document.getElementById("csvInput").value;
-  const rd=document.getElementById("reportDate").value.trim();
-  if(!csv.trim()){document.getElementById("errorMsg").textContent="⚠ Please paste your CSV data first.";return;}
-  if(!rd){document.getElementById("errorMsg").textContent="⚠ Please enter a report date.";return;}
-  const {rows}=parseCSV(csv);
-  if(!rows.length){document.getElementById("errorMsg").textContent="⚠ No data rows found — make sure you include the header row.";return;}
-  G=analyze(rows,rd); G_date=rd;
-  document.getElementById("summaryTitle").innerHTML=`Summary — ${rd} <small style="font-size:12px;color:#888;margin-left:8px;">${rows.length} rows processed</small>`;
-  document.getElementById("summaryContent").innerHTML=renderSummary(G);
-  document.getElementById("inputPanel").style.display="none";
-  document.getElementById("summaryPanel").style.display="block";
-  window.scrollTo(0,0);
+function generate() {
+  document.getElementById("errorMsg").textContent = "";
+  var csv = document.getElementById("csvInput").value;
+  var rd = document.getElementById("reportDate").value.trim();
+  if (!csv.trim()) { document.getElementById("errorMsg").textContent = "⚠ Please paste your CSV data first."; return; }
+  if (!rd) { document.getElementById("errorMsg").textContent = "⚠ Please enter a report date."; return; }
+  var parsed = parseCSV(csv);
+  if (!parsed.rows.length) { document.getElementById("errorMsg").textContent = "⚠ No data rows found — make sure you include the header row."; return; }
+  G = analyze(parsed.rows, rd);
+  G_date = rd;
+  document.getElementById("summaryTitle").innerHTML = "Summary — " + rd + ' <small style="font-size:12px;color:#888;margin-left:8px;">' + parsed.rows.length + ' rows processed</small>';
+  document.getElementById("summaryContent").innerHTML = renderSummary(G);
+  document.getElementById("inputPanel").style.display = "none";
+  document.getElementById("summaryPanel").style.display = "block";
+  window.scrollTo(0, 0);
 }
 
-function reset(){
-  G=null; G_date="";
-  document.getElementById("csvInput").value="";
-  document.getElementById("reportDate").value="";
-  document.getElementById("detectHint").textContent="";
-  document.getElementById("errorMsg").textContent="";
-  document.getElementById("inputPanel").style.display="block";
-  document.getElementById("summaryPanel").style.display="none";
+function reset() {
+  G = null; G_date = "";
+  document.getElementById("csvInput").value = "";
+  document.getElementById("reportDate").value = "";
+  document.getElementById("detectHint").textContent = "";
+  document.getElementById("errorMsg").textContent = "";
+  document.getElementById("inputPanel").style.display = "block";
+  document.getElementById("summaryPanel").style.display = "none";
 }
 
-document.addEventListener("DOMContentLoaded",()=>{
-  document.getElementById("csvInput").addEventListener("input",function(){
-    const {rows}=parseCSV(this.value);
-    const hint=document.getElementById("detectHint");
-    if(rows.length>0) hint.innerHTML=`<span class="ok">✓ ${rows.length} rows detected</span>`;
-    else hint.textContent="";
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("csvInput").addEventListener("input", function() {
+    var parsed = parseCSV(this.value);
+    var hint = document.getElementById("detectHint");
+    hint.innerHTML = parsed.rows.length > 0 ? '<span class="ok">✓ ' + parsed.rows.length + ' rows detected</span>' : "";
   });
 });
 
-// ── Modal (iframe-safe copy) ──────────────────────────────────────────────────
-function showTextModal(type){
-  const text = type==='table' ? buildTableText() : buildPlainText();
-  const title = type==='table' ? '📊 Copy as Table (for Google Sheets / Excel)' : '📋 Copy as Plain Text';
-  const instructions = type==='table'
-    ? 'Click the text area below, then press <strong>Ctrl+A</strong> → <strong>Ctrl+C</strong>. Open Google Sheets or Excel and press <strong>Ctrl+V</strong>.'
-    : 'Click the text area below, then press <strong>Ctrl+A</strong> → <strong>Ctrl+C</strong>. Paste into Word, email, or Teams with <strong>Ctrl+V</strong>.';
-  document.getElementById("modalTitle").textContent=title;
-  document.getElementById("modalInstructions").innerHTML=instructions;
-  document.getElementById("modalText").value=text;
-  document.getElementById("copySuccess").style.display="none";
-  document.getElementById("copyModal").classList.add("open");
-  setTimeout(()=>{const ta=document.getElementById("modalText");ta.focus();ta.select();},100);
+// ── Export helpers ────────────────────────────────────────────────────────────
+function dl(content, filename, mime) {
+  var blob = new Blob([content], {type: mime});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-function closeModal(){document.getElementById("copyModal").classList.remove("open");}
+function safeDateStr() { return G_date.replace(/\//g, "-"); }
 
-function tryCopy(){
-  const ta=document.getElementById("modalText");
-  ta.select();
-  try {
-    const ok=document.execCommand('copy');
-    if(ok){document.getElementById("copySuccess").style.display="inline";}
-    else{ ta.select(); }
-  } catch(e){ ta.select(); }
-}
-
-// ── Text builders ─────────────────────────────────────────────────────────────
-function buildPlainText(){
-  const r=G;
-  const lines=[`CS DEPARTMENT SUMMARY — ${G_date}`,"=".repeat(50),""];
-  lines.push("1. RENEWALS","-".repeat(30));
-  lines.push(`Total Clients Renewed: ${r.renewals.rows.length}`);
-  lines.push(`Renewal Type(s): ${Object.entries(r.renewals.types).map(([k,v])=>`${v} ${k}`).join(", ")||"—"}`);
+function buildPlainText() {
+  var r = G, lines = ["CS DEPARTMENT SUMMARY — " + G_date, "==================================================", ""];
+  lines.push("1. RENEWALS", "------------------------------");
+  lines.push("Total Clients Renewed: " + r.renewals.rows.length);
+  lines.push("Renewal Type(s): " + (Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—"));
   lines.push("Renewal Clients:");
-  r.renewals.rows.forEach(row=>lines.push(`  • ${fv(row,"Organization Name","name")} (${fv(row,"Primary Account Rep","Account Rep")})`));
+  r.renewals.rows.forEach(function(row){lines.push("  • "+fv(row,"Organization Name","name")+" ("+fv(row,"Primary Account Rep","Account Rep")+")");});
   lines.push("");
-  lines.push("2. TERMINATIONS","-".repeat(30));
-  lines.push(`Total Terminated: ${r.terminations.rows.length}`);
-  lines.push(`Type(s): ${Object.keys(r.terminations.types).length?Object.entries(r.terminations.types).map(([k,v])=>`${k}${v>1?` (${v})`:""}`).join("; "):"NA"}`);
-  r.terminations.rows.forEach(row=>lines.push(`  • ${fv(row,"Organization Name","name")} (${fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")})`));
+  lines.push("2. TERMINATIONS", "------------------------------");
+  lines.push("Total Terminated: " + r.terminations.rows.length);
+  lines.push("Type(s): " + (Object.keys(r.terminations.types).length ? Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; ") : "NA"));
+  r.terminations.rows.forEach(function(row){lines.push("  • "+fv(row,"Organization Name","name")+" ("+(fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status"))+")");});
   lines.push("");
-  lines.push("4. SUPPORT","-".repeat(30));
-  lines.push(`Past Support Deadline: ${r.support.pastDeadline}`);
-  lines.push(`1 Time Per Week: ${r.support.onePerWeek}`);
-  lines.push(`Support Package: ${r.support.supportPackage}`);
-  lines.push(`Banked Hours: ${r.support.bankedHours}`);
+  lines.push("4. SUPPORT", "------------------------------");
+  lines.push("Past Support Deadline: "+r.support.pastDeadline);
+  lines.push("1 Time Per Week: "+r.support.onePerWeek);
+  lines.push("Support Package: "+r.support.supportPackage);
+  lines.push("Banked Hours: "+r.support.bankedHours);
   lines.push("");
-  lines.push("5. CLIENT BREAKDOWN","-".repeat(30));
-  lines.push(`Total Active: ${r.clients.total}  |  Hosting: ${r.clients.hosting}  |  Implementations: ${r.clients.impl}`);
-  lines.push("By Program:"); Object.entries(r.clients.byProg).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>lines.push(`  ${k}: ${v}`));
-  lines.push("By State:"); Object.entries(r.clients.bySt).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>lines.push(`  ${k}: ${v}`));
+  lines.push("5. CLIENT BREAKDOWN", "------------------------------");
+  lines.push("Total Active: "+r.clients.total+"  |  Hosting: "+r.clients.hosting+"  |  Implementations: "+r.clients.impl);
+  lines.push("By Program:"); Object.keys(r.clients.byProg).forEach(function(k){lines.push("  "+k+": "+r.clients.byProg[k]);});
+  lines.push("By State:"); Object.keys(r.clients.bySt).forEach(function(k){lines.push("  "+k+": "+r.clients.bySt[k]);});
   lines.push("");
-  lines.push("8. CASELOADS","-".repeat(30));
-  Object.entries(r.caseloads).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([rep,c])=>
-    lines.push(`${rep}: ${c.hosting>0?c.hosting+" Hosting, ":""}${c.regular} Regular, ${c.handoff} for Handoff`));
+  lines.push("8. CASELOADS", "------------------------------");
+  Object.keys(r.caseloads).sort().forEach(function(rep){var c=r.caseloads[rep];lines.push(rep+": "+(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");});
   return lines.join("\n");
 }
 
-function buildTableText(){
-  const r=G;
-  const rows=[["Section","Item","Value","Detail"],["","Report Date",G_date,""]];
+function buildTableText() {
+  var r = G;
+  var rows = [["Section","Item","Value","Detail"], ["","Report Date",G_date,""]];
   rows.push(["1. Renewals","Total Renewed",r.renewals.rows.length,""]);
-  rows.push(["","Renewal Types",Object.entries(r.renewals.types).map(([k,v])=>`${v} ${k}`).join(", ")||"—",""]);
-  r.renewals.rows.forEach(row=>rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Primary Account Rep","Account Rep")]));
+  rows.push(["","Renewal Types",Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—",""]);
+  r.renewals.rows.forEach(function(row){rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Primary Account Rep","Account Rep")]);});
   rows.push(["2. Terminations","Total Terminated",r.terminations.rows.length,""]);
-  rows.push(["","Types",Object.entries(r.terminations.types).map(([k,v])=>`${k}${v>1?` (${v})`:""}`).join("; ")||"NA",""]);
-  r.terminations.rows.forEach(row=>rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")]));
+  rows.push(["","Types",Object.keys(r.terminations.types).length?Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; "):"NA",""]);
+  r.terminations.rows.forEach(function(row){rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")]);});
   rows.push(["4. Support","Past Deadline",r.support.pastDeadline,""]);
   rows.push(["","1x/Week",r.support.onePerWeek,""]);
   rows.push(["","Support Package",r.support.supportPackage,""]);
@@ -390,23 +410,22 @@ function buildTableText(){
   rows.push(["5. Clients","Total Active",r.clients.total,""]);
   rows.push(["","Hosting",r.clients.hosting,""]);
   rows.push(["","Implementations",r.clients.impl,""]);
-  Object.entries(r.clients.byProg).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>rows.push(["","Program: "+k,v,""]));
-  Object.entries(r.clients.bySt).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>rows.push(["","State: "+k,v,""]));
-  Object.entries(r.caseloads).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([rep,c])=>
-    rows.push(["8. Caseloads",rep,`${c.hosting>0?c.hosting+" Hosting, ":""}${c.regular} Regular, ${c.handoff} for Handoff`,""]));
-  return rows.map(r=>r.join("\t")).join("\n");
+  Object.keys(r.clients.byProg).forEach(function(k){rows.push(["","Program: "+k,r.clients.byProg[k],""]);});
+  Object.keys(r.clients.bySt).forEach(function(k){rows.push(["","State: "+k,r.clients.bySt[k],""]);});
+  Object.keys(r.caseloads).sort().forEach(function(rep){var c=r.caseloads[rep];rows.push(["8. Caseloads",rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff",""]);});
+  return rows.map(function(r){return r.join("\t");}).join("\n");
 }
 
-function buildCSVData(){
-  const r=G;
-  const rows=[["Section","Item","Value","Detail"]];
+function buildCSVData() {
+  var r = G;
+  var rows = [["Section","Item","Value","Detail"]];
   rows.push(["","Report Date",G_date,""]);
   rows.push(["1. Renewals","Total Renewed",r.renewals.rows.length,""]);
-  rows.push(["","Renewal Types",Object.entries(r.renewals.types).map(([k,v])=>`${v} ${k}`).join(", ")||"—",""]);
-  r.renewals.rows.forEach(row=>rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Primary Account Rep","Account Rep")]));
+  rows.push(["","Renewal Types",Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—",""]);
+  r.renewals.rows.forEach(function(row){rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Primary Account Rep","Account Rep")]);});
   rows.push(["2. Terminations","Total Terminated",r.terminations.rows.length,""]);
-  rows.push(["","Types",Object.entries(r.terminations.types).map(([k,v])=>`${k}${v>1?` (${v})`:""}`).join("; ")||"NA",""]);
-  r.terminations.rows.forEach(row=>rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")]));
+  rows.push(["","Types",Object.keys(r.terminations.types).length?Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; "):"NA",""]);
+  r.terminations.rows.forEach(function(row){rows.push(["","Client",fv(row,"Organization Name","name"),fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")]);});
   rows.push(["4. Support","Past Deadline",r.support.pastDeadline,""]);
   rows.push(["","1x/Week",r.support.onePerWeek,""]);
   rows.push(["","Support Package",r.support.supportPackage,""]);
@@ -414,73 +433,42 @@ function buildCSVData(){
   rows.push(["5. Clients","Total Active",r.clients.total,""]);
   rows.push(["","Hosting",r.clients.hosting,""]);
   rows.push(["","Implementations",r.clients.impl,""]);
-  Object.entries(r.clients.byProg).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>rows.push(["","Program: "+k,v,""]));
-  Object.entries(r.clients.bySt).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>rows.push(["","State: "+k,v,""]));
-  Object.entries(r.caseloads).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([rep,c])=>
-    rows.push(["8. Caseloads",rep,`${c.hosting>0?c.hosting+" Hosting, ":""}${c.regular} Regular, ${c.handoff} for Handoff`,""]));
-  return rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  Object.keys(r.clients.byProg).forEach(function(k){rows.push(["","Program: "+k,r.clients.byProg[k],""]);});
+  Object.keys(r.clients.bySt).forEach(function(k){rows.push(["","State: "+k,r.clients.bySt[k],""]);});
+  Object.keys(r.caseloads).sort().forEach(function(rep){var c=r.caseloads[rep];rows.push(["8. Caseloads",rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff",""]);});
+  return rows.map(function(row){return row.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
 }
 
-function buildPrintHTML(autoPrint=false){
-  const r=G;
-  const tbl=(rows)=>`<table>${rows.map(([l,v,i])=>`<tr${i?' class="indent"':''}><td class="label">${l}</td><td class="val">${v}</td></tr>`).join("")}</table>`;
-  const sh=(t)=>`<div class="subhead">${t}</div>`;
-  const oRows=(obj)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr class="indent"><td class="label">${k}</td><td class="val">${v}</td></tr>`).join("")||"<tr><td colspan='2' style='color:#aaa;font-size:13px'>—</td></tr>";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Summary ${G_date}</title>
-<style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#111;}
-h1{color:#1a2e5a;font-size:22px;}p.sub{color:#888;font-size:13px;margin-bottom:24px;}
-.section{margin-bottom:20px;border:1px solid #dde;border-radius:8px;overflow:hidden;}
-.sec-header{background:#1a2e5a;color:#fff;padding:10px 16px;font-weight:700;font-size:14px;}
-.sec-body{padding:14px 16px;}table{width:100%;border-collapse:collapse;}
-tr{border-bottom:1px solid #f0f0f0;}td{padding:5px 4px;font-size:13px;}
-td.label{color:#444;width:65%;}td.val{font-weight:700;text-align:right;}
-tr.indent td.label{padding-left:20px;color:#666;}
-.subhead{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;}
-.cl{font-size:13px;color:#555;padding:2px 0;border-bottom:1px solid #f5f5f5;}
-button.print-btn{margin-top:16px;padding:10px 24px;background:#1a2e5a;color:#fff;border:none;border-radius:7px;font-size:14px;cursor:pointer;}
-@media print{button{display:none;}}</style></head><body>
-<h1>CS Department Summary</h1>
-<p class="sub">Report Date: ${G_date} &nbsp;|&nbsp; Generated: ${new Date().toLocaleDateString()}</p>
-<div class="section"><div class="sec-header">1. Renewals</div><div class="sec-body">
-${tbl([["Total Clients Renewed",`${r.renewals.rows.length} Clients`],["Renewal Type(s)",Object.entries(r.renewals.types).map(([k,v])=>`${v} ${k}`).join(", ")||"—"]])}
-${sh("Renewal Clients")}${r.renewals.rows.map(row=>`<div class="cl">• ${fv(row,"Organization Name","name")} <span style="color:#999">(${fv(row,"Primary Account Rep","Account Rep")})</span></div>`).join("")||"<div style='color:#aaa;font-size:13px'>None</div>"}
-</div></div>
-<div class="section"><div class="sec-header">2. Terminations</div><div class="sec-body">
-${tbl([["Total Terminated",r.terminations.rows.length],["Type(s)",Object.keys(r.terminations.types).length?Object.entries(r.terminations.types).map(([k,v])=>`${k}${v>1?` (${v})`:""}`).join("; "):"NA"]])}
-${sh("Termination Clients")}${r.terminations.rows.map(row=>`<div class="cl">• ${fv(row,"Organization Name","name")} <span style="color:#999">(${fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status")})</span></div>`).join("")||"<div style='color:#aaa;font-size:13px'>None</div>"}
-</div></div>
-<div class="section"><div class="sec-header">4. Support</div><div class="sec-body">
-${tbl([["Past Support Deadline",r.support.pastDeadline],["1 Time Per Week",r.support.onePerWeek],["Support Package",r.support.supportPackage],["Banked Hours",r.support.bankedHours]])}
-</div></div>
-<div class="section"><div class="sec-header">5. Client Breakdown</div><div class="sec-body">
-${tbl([["Total Active",r.clients.total],["Hosting",r.clients.hosting],["Implementations",r.clients.impl]])}
-${sh("By Program")}<table>${oRows(r.clients.byProg)}</table>
-${sh("By State")}<table>${oRows(r.clients.bySt)}</table>
-${sh("Hosting by Program")}<table>${oRows(r.clients.hProg)}</table>
-${sh("Implementations by Program")}<table>${oRows(r.clients.iProg)}</table>
-</div></div>
-<div class="section"><div class="sec-header">8. Caseloads</div><div class="sec-body">
-<table>${Object.entries(r.caseloads).sort((a,b)=>a[0].localeCompare(b[0])).map(([rep,c])=>`<tr><td class="label">${rep}</td><td class="val">${c.hosting>0?c.hosting+" Hosting, ":""}${c.regular} Regular, ${c.handoff} for Handoff</td></tr>`).join("")}</table>
-</div></div>
-<button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
-${autoPrint ? '<script>window.onload=function(){window.print();}<\/script>' : ''}
-</body></html>`;
+function buildPrintHTML() {
+  var r = G;
+  var sections = "";
+  // helper
+  function tr(l,v,i){return "<tr"+(i?' class="indent"':'')+"><td class='label'>"+l+"</td><td class='val'>"+v+"</td></tr>";}
+  function sh(t){return "<div class='subhead'>"+t+"</div>";}
+  function otr(obj){var e=Object.keys(obj).map(function(k){return[k,obj[k]];}).sort(function(a,b){return b[1]-a[1];});return e.length?e.map(function(x){return tr(x[0],x[1],true);}).join(""):"<tr><td colspan='2' style='color:#aaa'>—</td></tr>";}
+  // renewals
+  var rtypes = Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—";
+  sections += "<div class='section'><div class='sec-header'>1. Renewals</div><div class='sec-body'><table>"+tr("Total Clients Renewed",r.renewals.rows.length+" Clients")+tr("Renewal Type(s)",rtypes)+"</table>"+sh("Renewal Clients")+r.renewals.rows.map(function(row){return "<div class='cl'>• "+fv(row,"Organization Name","name")+" <span style='color:#999'>("+fv(row,"Primary Account Rep","Account Rep")+")</span></div>";}).join("")+"</div></div>";
+  // terminations
+  var ttypes = Object.keys(r.terminations.types).length?Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; "):"NA";
+  sections += "<div class='section'><div class='sec-header'>2. Terminations</div><div class='sec-body'><table>"+tr("Total Terminated",r.terminations.rows.length)+tr("Type(s)",ttypes)+"</table>"+sh("Termination Clients")+r.terminations.rows.map(function(row){return "<div class='cl'>• "+fv(row,"Organization Name","name")+" <span style='color:#999'>("+(fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status"))+")</span></div>";}).join("")+"</div></div>";
+  // support
+  sections += "<div class='section'><div class='sec-header'>4. Support</div><div class='sec-body'><table>"+tr("Past Support Deadline",r.support.pastDeadline)+tr("1 Time Per Week",r.support.onePerWeek)+tr("Support Package",r.support.supportPackage)+tr("Banked Hours",r.support.bankedHours)+"</table></div></div>";
+  // clients
+  sections += "<div class='section'><div class='sec-header'>5. Client Breakdown</div><div class='sec-body'><table>"+tr("Total Active",r.clients.total)+tr("Hosting",r.clients.hosting)+tr("Implementations",r.clients.impl)+"</table>"+sh("By Program")+"<table>"+otr(r.clients.byProg)+"</table>"+sh("By State")+"<table>"+otr(r.clients.bySt)+"</table>"+sh("Hosting by Program")+"<table>"+otr(r.clients.hProg)+"</table>"+sh("Implementations by Program")+"<table>"+otr(r.clients.iProg)+"</table></div></div>";
+  // caseloads
+  var crows = Object.keys(r.caseloads).sort().map(function(rep){var c=r.caseloads[rep];return tr(rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");}).join("");
+  sections += "<div class='section'><div class='sec-header'>8. Caseloads</div><div class='sec-body'><table>"+crows+"</table></div></div>";
+
+  return "<!DOCTYPE html><html><head><meta charset='utf-8'><title>CS Summary "+G_date+"</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#111;}h1{color:#1a2e5a;font-size:22px;}p.sub{color:#888;font-size:13px;margin-bottom:24px;}.section{margin-bottom:20px;border:1px solid #dde;border-radius:8px;overflow:hidden;}.sec-header{background:#1a2e5a;color:#fff;padding:10px 16px;font-weight:700;font-size:14px;}.sec-body{padding:14px 16px;}table{width:100%;border-collapse:collapse;}tr{border-bottom:1px solid #f0f0f0;}td{padding:5px 4px;font-size:13px;}td.label{color:#444;width:65%;}td.val{font-weight:700;text-align:right;}tr.indent td.label{padding-left:20px;color:#666;}.subhead{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;}.cl{font-size:13px;color:#555;padding:2px 0;border-bottom:1px solid #f5f5f5;}button{margin-top:16px;padding:10px 24px;background:#1a2e5a;color:#fff;border:none;border-radius:7px;font-size:14px;cursor:pointer;}@media print{button{display:none;}}</style></head><body><h1>CS Department Summary</h1><p class='sub'>Report Date: "+G_date+" &nbsp;|&nbsp; Generated: "+new Date().toLocaleDateString()+"</p>"+sections+"<button onclick='window.print()'>🖨 Print / Save as PDF</button></body></html>";
 }
 
-function dl(content, filename, mime){
-  const blob=new Blob([content],{type:mime});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-  a.download=filename;a.click();URL.revokeObjectURL(a.href);
-}
-function downloadText(){ dl(buildPlainText(),`CS-Summary-${G_date.replace(/\//g,"-")}.txt`,"text/plain"); }
-function downloadTable(){ dl(buildTableText(),`CS-Summary-${G_date.replace(/\//g,"-")}.tsv`,"text/tab-separated-values"); }
-function downloadCSV(){ dl(buildCSVData(),`CS-Summary-${G_date.replace(/\//g,"-")}.csv`,"text/csv"); }
+function downloadText(){ dl(buildPlainText(), "CS-Summary-"+safeDateStr()+".txt", "text/plain"); }
+function downloadTable(){ dl(buildTableText(), "CS-Summary-"+safeDateStr()+".tsv", "text/tab-separated-values"); }
+function downloadCSV(){ dl(buildCSVData(), "CS-Summary-"+safeDateStr()+".csv", "text/csv"); }
 function downloadPDF(){
-  // Opens the formatted HTML in a new tab with auto-print triggered
-  const html=buildPrintHTML(true);
-  const blob=new Blob([html],{type:"text/html"});
-  const url=URL.createObjectURL(blob);
-  window.open(url,"_blank");
+  var blob = new Blob([buildPrintHTML()], {type:"text/html"});
+  window.open(URL.createObjectURL(blob), "_blank");
 }
 </script>
 </body>
