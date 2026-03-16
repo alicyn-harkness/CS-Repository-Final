@@ -170,10 +170,12 @@ function analyze(rows, reportDate) {
     renewalTypes[key] = (renewalTypes[key] || 0) + 1;
   });
 
-  // 2. Terminations — ALL rows, filtered to report month
+  // 2. Terminations — ALL rows, filtered to PRIOR month only
+  var priorMonth = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
+  var priorMonthEnd = new Date(ref.getFullYear(), ref.getMonth(), 0);
   var termRows = rows.filter(function(r) {
     var d = pd(fv(r, "Effective Date of Termination", "Termination Date"));
-    return d && d.getMonth() === rm && d.getFullYear() === ry;
+    return d && d >= priorMonth && d <= priorMonthEnd;
   });
   var termTypes = {};
   termRows.forEach(function(r) {
@@ -181,15 +183,17 @@ function analyze(rows, reportDate) {
     termTypes[reason] = (termTypes[reason] || 0) + 1;
   });
 
-  // 4. Support — active only
-  var pastDeadline = 0, onePerWeek = 0, supportPackage = 0, bankedHours = 0;
+  // 4. Support — active only, exclude "None", track clients per type
+  var pastDeadlineClients = [], onePerWeekClients = [], supportPackageClients = [], bankedHoursClients = [];
   activeRows.forEach(function(r) {
     var s = fv(r, "Support Call Status", "Support Status").toLowerCase();
+    var name = fv(r, "Organization Name", "name");
     var dl = pd(fv(r, "Last Support Deadline Date", "Support Deadline"));
-    if (dl && dl < ref) pastDeadline++;
-    if (s.indexOf("1 time per week") !== -1 || s.indexOf("one time per week") !== -1) onePerWeek++;
-    if (s.indexOf("support package") !== -1) supportPackage++;
-    if (s.indexOf("banked") !== -1) bankedHours++;
+    if (s === "none" || s === "") return;
+    if (dl && dl < ref) pastDeadlineClients.push(name);
+    if (s.indexOf("1 time per week") !== -1 || s.indexOf("one time per week") !== -1) onePerWeekClients.push(name);
+    if (s.indexOf("support package") !== -1) supportPackageClients.push(name);
+    if (s.indexOf("banked") !== -1) bankedHoursClients.push(name);
   });
 
   // 5. Client breakdown — active only
@@ -237,7 +241,12 @@ function analyze(rows, reportDate) {
   return {
     renewals: {rows: renewalRows, types: renewalTypes},
     terminations: {rows: termRows, types: termTypes},
-    support: {pastDeadline:pastDeadline, onePerWeek:onePerWeek, supportPackage:supportPackage, bankedHours:bankedHours},
+    support: {
+      pastDeadline: pastDeadlineClients.length, pastDeadlineClients: pastDeadlineClients,
+      onePerWeek: onePerWeekClients.length, onePerWeekClients: onePerWeekClients,
+      supportPackage: supportPackageClients.length, supportPackageClients: supportPackageClients,
+      bankedHours: bankedHoursClients.length, bankedHoursClients: bankedHoursClients
+    },
     clients: {total: regular.length + impl.length, hosting: hosting.length, impl: impl.length, byProg:byProg, bySt:bySt, hProg:hProg, hSt:hSt, iProg:iProg, iSt:iSt},
     caseloads: caseloads
   };
@@ -261,7 +270,14 @@ function clientList(rows, repKey, reasonKey) {
   if (!rows.length) return '<div class="none">None for this period</div>';
   return rows.map(function(r) {
     var name = fv(r, "Organization Name", "name");
-    var detail = repKey ? fv(r, repKey) : (fv(r, "Termination Reason", "Lost To", "reason") || fv(r, "Client Status", "status"));
+    var detail = "";
+    if (repKey === "Primary Account Rep") {
+      var nextDate = fv(r, "Next Renewal Date", "Next Renewal");
+      var rep = fv(r, "Primary Account Rep", "Account Rep");
+      detail = "Next Renewal: " + nextDate + (rep ? " — " + rep : "");
+    } else {
+      detail = fv(r, "Termination Reason", "Lost To", "reason") || fv(r, "Client Status", "status");
+    }
     return '<div class="client-item">• ' + name + (detail ? ' <span>(' + detail + ')</span>' : '') + '</div>';
   }).join("");
 }
@@ -278,21 +294,43 @@ function renderSummary(r) {
     clientList(r.renewals.rows, "Primary Account Rep"));
 
   // 2. Terminations
-  var termTypeStr = Object.keys(r.terminations.types).length
-    ? Object.keys(r.terminations.types).map(function(k) { return k + (r.terminations.types[k] > 1 ? " (" + r.terminations.types[k] + ")" : ""); }).join("; ")
+  var ttypes = Object.keys(r.terminations.types).length
+    ? Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; ")
     : "NA";
+  var termClientHTML = r.terminations.rows.length
+    ? r.terminations.rows.map(function(row){
+        var name = fv(row,"Organization Name","name");
+        var termDate = fv(row,"Effective Date of Termination","Termination Date");
+        var reason = fv(row,"Termination Reason","Lost To","reason") || fv(row,"Client Status","status");
+        return '<div class="client-item">• '+name+' <span>(Terminated: '+termDate+(reason?' — '+reason:'')+' )</span></div>';
+      }).join("")
+    : '<div class="none">None for this period</div>';
   html += mkSection(2, "Terminations",
     mkRow("Total Clients Terminated", r.terminations.rows.length) +
-    mkRow("Termination Type(s)", termTypeStr) +
+    mkRow("Termination Type(s)", ttypes) +
     subhead("Termination Clients") +
-    clientList(r.terminations.rows, null));
+    termClientHTML);
 
   // 4. Support
+  var totalOnSupport = new Set();
+  r.support.onePerWeekClients.forEach(function(n){totalOnSupport.add(n);});
+  r.support.supportPackageClients.forEach(function(n){totalOnSupport.add(n);});
+  r.support.bankedHoursClients.forEach(function(n){totalOnSupport.add(n);});
+
+  function supportClientList(clients) {
+    if (!clients.length) return '<div class="none">None</div>';
+    return clients.map(function(name){ return '<div class="client-item">• '+name+'</div>'; }).join("");
+  }
   html += mkSection(4, "Support",
+    mkRow("Total Clients on Support", totalOnSupport.size) +
     mkRow("Clients Past Support Deadline", r.support.pastDeadline) +
-    mkRow("1 Time Per Week", r.support.onePerWeek) +
-    mkRow("Support Package", r.support.supportPackage) +
-    mkRow("Banked Hours", r.support.bankedHours));
+    (r.support.pastDeadline > 0 ? supportClientList(r.support.pastDeadlineClients) : "") +
+    subhead("1 Time Per Week (" + r.support.onePerWeek + ")") +
+    supportClientList(r.support.onePerWeekClients) +
+    subhead("Support Package (" + r.support.supportPackage + ")") +
+    supportClientList(r.support.supportPackageClients) +
+    subhead("Banked Hours (" + r.support.bankedHours + ")") +
+    supportClientList(r.support.bankedHoursClients));
 
   // 5. Client Breakdown
   html += mkSection(5, "Client Breakdown",
@@ -448,7 +486,7 @@ function buildPrintHTML() {
   function otr(obj){var e=Object.keys(obj).map(function(k){return[k,obj[k]];}).sort(function(a,b){return b[1]-a[1];});return e.length?e.map(function(x){return tr(x[0],x[1],true);}).join(""):"<tr><td colspan='2' style='color:#aaa'>—</td></tr>";}
   // renewals
   var rtypes = Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—";
-  sections += "<div class='section'><div class='sec-header'>1. Renewals</div><div class='sec-body'><table>"+tr("Total Clients Renewed",r.renewals.rows.length+" Clients")+tr("Renewal Type(s)",rtypes)+"</table>"+sh("Renewal Clients")+r.renewals.rows.map(function(row){return "<div class='cl'>• "+fv(row,"Organization Name","name")+" <span style='color:#999'>("+fv(row,"Primary Account Rep","Account Rep")+")</span></div>";}).join("")+"</div></div>";
+  sections += "<div class='section'><div class='sec-header'>1. Renewals</div><div class='sec-body'><table>"+tr("Total Clients Renewed",r.renewals.rows.length+" Clients")+tr("Renewal Type(s)",rtypes)+"</table>"+sh("Renewal Clients")+r.renewals.rows.map(function(row){return "<div class='cl'>• "+fv(row,"Organization Name","name")+" <span style='color:#999'>(Next Renewal: "+fv(row,"Next Renewal Date","Next Renewal")+" — "+fv(row,"Primary Account Rep","Account Rep")+")</span></div>";}).join("")+"</div></div>";
   // terminations
   var ttypes = Object.keys(r.terminations.types).length?Object.keys(r.terminations.types).map(function(k){return k+(r.terminations.types[k]>1?" ("+r.terminations.types[k]+")":"");}).join("; "):"NA";
   sections += "<div class='section'><div class='sec-header'>2. Terminations</div><div class='sec-body'><table>"+tr("Total Terminated",r.terminations.rows.length)+tr("Type(s)",ttypes)+"</table>"+sh("Termination Clients")+r.terminations.rows.map(function(row){return "<div class='cl'>• "+fv(row,"Organization Name","name")+" <span style='color:#999'>("+(fv(row,"Termination Reason","Lost To","reason")||fv(row,"Client Status","status"))+")</span></div>";}).join("")+"</div></div>";
