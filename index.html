@@ -491,10 +491,18 @@ function downloadText(){ dl(buildText(),"CS-Summary-"+safe()+".txt","text/plain"
 function downloadTable(){ dl(buildTSV(),"CS-Summary-"+safe()+".tsv","text/tab-separated-values"); }
 function downloadCSV(){ dl(buildCSV(),"CS-Summary-"+safe()+".csv","text/csv"); }
 function downloadPDF(){
-  var html = buildPrintHTML();
-  var blob = new Blob([html], {type:"text/html;charset=utf-8"});
-  var url  = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  try {
+    var html = buildPrintHTML();
+    var blob = new Blob([html], {type:"text/html"});
+    var url  = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert("Error generating PDF page: " + e.message);
+  }
 }
 </script>
 </body>
