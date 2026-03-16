@@ -79,7 +79,7 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
         <button class="exp-btn" onclick="downloadText()">📄 Download as Text</button>
         <button class="exp-btn" onclick="downloadTable()">📊 Download as Table (Sheets/Excel)</button>
         <button class="exp-btn primary-export" onclick="downloadCSV()">⬇️ Download CSV</button>
-        <button class="exp-btn primary-export" onclick="downloadPDF()">🖨 Download as PDF</button>
+        <button class="exp-btn primary-export" onclick="try{downloadPDF();}catch(e){alert('Error: '+e.message);}">🖨 Download as PDF</button>
       </div>
     </div>
     <div id="summaryContent"></div>
