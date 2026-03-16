@@ -467,7 +467,7 @@ function buildPrintHTML(){
     sh2("By Program")+"<table>"+otr(r.clients.byProg)+"</table>"+sh2("By State")+"<table>"+otr(r.clients.bySt)+"</table>"+
     sh2("Hosting by Program")+"<table>"+otr(r.clients.hProg)+"</table>"+sh2("Implementations by Program")+"<table>"+otr(r.clients.iProg)+"</table>";
   var sec8=Object.keys(r.caseloads).sort().map(function(rep){var c=r.caseloads[rep];return tr(rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");}).join("");
-  function wrap(n,t,b){return "<div class='s'><div class='sh2'>"+t+"</div><div class='sb'>"+b+"</div></div>";}
+  
   return "<!DOCTYPE html><html><head><meta charset='utf-8'><title>CS Summary "+G_date+"</title><style>"+
     "body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#111;}"+
     "h1{color:#1a2e5a;font-size:22px;margin-bottom:4px;}p{color:#888;font-size:13px;margin-bottom:20px;}"+
@@ -490,7 +490,12 @@ function buildPrintHTML(){
 function downloadText(){ dl(buildText(),"CS-Summary-"+safe()+".txt","text/plain"); }
 function downloadTable(){ dl(buildTSV(),"CS-Summary-"+safe()+".tsv","text/tab-separated-values"); }
 function downloadCSV(){ dl(buildCSV(),"CS-Summary-"+safe()+".csv","text/csv"); }
-function downloadPDF(){ var blob=new Blob([buildPrintHTML()],{type:"text/html"});window.open(URL.createObjectURL(blob),"_blank"); }
+function downloadPDF(){
+  var html = buildPrintHTML();
+  var blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  var url  = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
 </script>
 </body>
 </html>
