@@ -28,7 +28,7 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
 .exp-btn:hover{background:#f0f4ff;}
 .exp-btn.primary-export{background:#1a2e5a;color:#fff;border-color:#1a2e5a;}
 .exp-btn.primary-export:hover{background:#162448;}
-.sec{margin-bottom:20px;border:1px solid #dde;border-radius:10px;overflow:hidden;}
+.sec{margin-bottom:20px;border:1px solid #dde;border-radius:10px;overflow:hidden;width:100%;}
 .sec-hdr{background:#1a2e5a;color:#fff;padding:10px 16px;font-weight:700;font-size:14px;}
 .sec-body{padding:14px 16px;background:#fff;}
 .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;}
@@ -268,7 +268,7 @@ function analyze(rows, reportDate) {
 // ── Render helpers ────────────────────────────────────────────────────────────
 function mkRow(l,v,indent){ return '<div class="row'+(indent?' indent':'')+'"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>'; }
 function sh(t){ return '<div class="subhead">'+t+'</div>'; }
-function mkSec(num,title,body){ return '<div class="sec"><div class="sec-hdr">'+num+'. '+title+'</div><div class="sec-body">'+body+'</div></div>'; }
+function mkSec(num,title,body){ return '<div class="sec"><div class="sec-hdr">'+title+'</div><div class="sec-body">'+body+'</div></div>'; }
 function objRows(obj){
   var e=Object.keys(obj).map(function(k){return[k,obj[k]];}).sort(function(a,b){return b[1]-a[1];});
   return e.length ? e.map(function(x){return mkRow(x[0],x[1],true);}).join("") : '<div class="none">—</div>';
@@ -467,7 +467,7 @@ function buildPrintHTML(){
     sh2("By Program")+"<table>"+otr(r.clients.byProg)+"</table>"+sh2("By State")+"<table>"+otr(r.clients.bySt)+"</table>"+
     sh2("Hosting by Program")+"<table>"+otr(r.clients.hProg)+"</table>"+sh2("Implementations by Program")+"<table>"+otr(r.clients.iProg)+"</table>";
   var sec8=Object.keys(r.caseloads).sort().map(function(rep){var c=r.caseloads[rep];return tr(rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");}).join("");
-  function wrap(n,t,b){return "<div class='s'><div class='sh2'>"+n+". "+t+"</div><div class='sb'>"+b+"</div></div>";}
+  function wrap(n,t,b){return "<div class='s'><div class='sh2'>"+t+"</div><div class='sb'>"+b+"</div></div>";}
   return "<!DOCTYPE html><html><head><meta charset='utf-8'><title>CS Summary "+G_date+"</title><style>"+
     "body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#111;}"+
     "h1{color:#1a2e5a;font-size:22px;margin-bottom:4px;}p{color:#888;font-size:13px;margin-bottom:20px;}"+
