@@ -160,7 +160,9 @@ function analyze(rows, reportDate) {
   const ref=pd(reportDate)||new Date();
   const rm=ref.getMonth(), ry=ref.getFullYear();
 
-  const renewalRows=rows.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d<=ref;});
+  const allActive=rows.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("active"));
+
+  const renewalRows=allActive.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d<=ref;});
   const renewalTypes={};
   renewalRows.forEach(r=>{
     const policy=fv(r,"Renewal Policy","policy")||"";
@@ -178,7 +180,7 @@ function analyze(rows, reportDate) {
     termTypes[reason]=(termTypes[reason]||0)+1;
   });
 
-  const activeRows=rows.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("active"));
+  const activeRows=allActive;
   let pastDeadline=0,onePerWeek=0,supportPackage=0,bankedHours=0;
   activeRows.forEach(r=>{
     const s=fv(r,"Support Call Status","Support Status").toLowerCase();
@@ -193,7 +195,6 @@ function analyze(rows, reportDate) {
   const regular=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase()==="active");
   const hosting=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("hosting only"));
   const impl=allActive.filter(r=>fv(r,"Client Status","status").toLowerCase().includes("implementation"));
-  const byProg={},bySt={},hProg={},hSt={},iProg={},iSt={};
   allActive.forEach(r=>{
     const s=fv(r,"Client Status","status").toLowerCase();
     const progs=fv(r,"Program Type(s)","Program Types","Program Type").split(";");
