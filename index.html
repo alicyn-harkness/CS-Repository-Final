@@ -160,7 +160,7 @@ function analyze(rows, reportDate) {
   const ref=pd(reportDate)||new Date();
   const rm=ref.getMonth(), ry=ref.getFullYear();
 
-  const renewalRows=rows.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d.getMonth()===rm&&d.getFullYear()===ry;});
+  const renewalRows=rows.filter(r=>{const d=pd(fv(r,"Next Renewal Date","Next Renewal"));return d&&d<ref;});
   const renewalTypes={};
   renewalRows.forEach(r=>{
     const policy=fv(r,"Renewal Policy","policy")||"";
