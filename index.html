@@ -19,16 +19,16 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
 .ok{color:#2a8a2a;}
 .err{color:#c44;font-size:13px;margin-top:8px;}
 .btn-primary{margin-top:14px;padding:11px 28px;border-radius:8px;border:none;background:#1a2e5a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;}
+.btn-primary:hover{background:#162448;}
 .btn-secondary{padding:8px 16px;border-radius:7px;border:1px solid #ccd;background:#f7f8fc;cursor:pointer;font-size:13px;}
+.btn-secondary:hover{background:#e8eaf0;}
 .export-bar{background:#f0f4ff;border:1px solid #c5cfee;border-radius:10px;padding:14px 16px;margin-bottom:20px;}
 .export-bar h3{font-weight:700;font-size:13px;color:#1a2e5a;margin-bottom:6px;}
 .export-note{font-size:11px;color:#778;margin-bottom:10px;font-style:italic;}
 .export-btns{display:flex;flex-wrap:wrap;gap:10px;}
-.exp-btn{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:1px solid #ccd;background:#fff;cursor:pointer;font-size:13px;font-weight:600;color:#333;}
-.exp-btn:hover{background:#f0f4ff;}
-.exp-btn.primary-export{background:#1a2e5a;color:#fff;border-color:#1a2e5a;}
-.exp-btn.primary-export:hover{background:#162448;}
-.sec{margin-bottom:20px;border:1px solid #dde;border-radius:10px;overflow:hidden;width:100%;}
+.exp-btn{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;border:1px solid #1a2e5a;background:#1a2e5a;cursor:pointer;font-size:13px;font-weight:600;color:#fff;}
+.exp-btn:hover{background:#162448;border-color:#162448;}
+.sec{margin-bottom:20px;border:1px solid #dde;border-radius:10px;overflow:hidden;}
 .sec-hdr{background:#1a2e5a;color:#fff;padding:10px 16px;font-weight:700;font-size:14px;}
 .sec-body{padding:14px 16px;background:#fff;}
 .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;}
@@ -56,7 +56,7 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
         <label for="reportDate">Report Date</label>
         <input type="text" id="reportDate" placeholder="e.g. 3/1/2026"/>
       </div>
-      <div style="font-size:12px;color:#888;padding-bottom:10px;">Renewals/Terminations look at the prior month</div>
+      <div style="font-size:12px;color:#888;padding-bottom:10px;">Renewals &amp; Terminations look at the prior month</div>
     </div>
     <label for="csvInput">Paste Report Data
       <span style="font-weight:400;color:#888;margin-left:8px;">(Excel: select all including headers → Ctrl+C → Ctrl+V below)</span>
@@ -78,8 +78,8 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
       <div class="export-btns">
         <button class="exp-btn" onclick="downloadText()">📄 Download as Text</button>
         <button class="exp-btn" onclick="downloadTable()">📊 Download as Table (Sheets/Excel)</button>
-        <button class="exp-btn primary-export" onclick="downloadCSV()">⬇️ Download CSV</button>
-        <button class="exp-btn primary-export" onclick="try{downloadPDF();}catch(e){alert('Error: '+e.message);}">🖨 Download as PDF</button>
+        <button class="exp-btn" onclick="downloadCSV()">⬇️ Download CSV</button>
+        <button class="exp-btn" onclick="downloadPDF()">🖨 Download as PDF</button>
       </div>
     </div>
     <div id="summaryContent"></div>
@@ -89,11 +89,9 @@ textarea{width:100%;min-height:200px;font-family:monospace;font-size:12px;paddin
 <script>
 var G = null, G_date = "", G_rows = 0;
 
-// ── Parse ─────────────────────────────────────────────────────────────────────
 function parseData(text) {
   if (!text || !text.trim()) return {headers:[], rows:[]};
   var lines = text.trim().split(/\r?\n/);
-  // detect delimiter
   var delim = lines[0].indexOf('\t') !== -1 ? '\t' : ',';
   var headers = splitLine(lines[0], delim);
   var rows = [];
@@ -106,28 +104,25 @@ function parseData(text) {
     }
     rows.push(obj);
   }
-  return {headers:headers, rows:rows};
+  return {headers: headers, rows: rows};
 }
 
 function splitLine(line, delim) {
-  var vals=[], cur="", inQ=false;
-  for (var i=0; i<line.length; i++) {
-    var c=line[i];
-    if (c==='"') { inQ=!inQ; }
-    else if (c===delim && !inQ) { vals.push(cur.replace(/^"|"$/g,"")); cur=""; }
-    else { cur+=c; }
+  var vals = [], cur = "", inQ = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === delim && !inQ) { vals.push(cur.replace(/^"|"$/g, "")); cur = ""; }
+    else { cur += c; }
   }
-  vals.push(cur.replace(/^"|"$/g,""));
+  vals.push(cur.replace(/^"|"$/g, ""));
   return vals;
 }
 
-// Get field value by EXACT column name match first, then partial
 function get(row, colName) {
-  // exact match first
   if (row[colName] !== undefined) return row[colName];
-  // case-insensitive exact
   var keys = Object.keys(row);
-  for (var i=0; i<keys.length; i++) {
+  for (var i = 0; i < keys.length; i++) {
     if (keys[i].trim().toLowerCase() === colName.toLowerCase()) return row[keys[i]];
   }
   return "";
@@ -137,372 +132,464 @@ function pd(s) {
   if (!s || !s.trim()) return null;
   var parts = s.trim().split("/");
   if (parts.length === 3) {
-    var m=parseInt(parts[0],10)-1, d=parseInt(parts[1],10), y=parseInt(parts[2],10);
-    if (!isNaN(m)&&!isNaN(d)&&!isNaN(y)) return new Date(y,m,d);
+    var m = parseInt(parts[0], 10) - 1;
+    var d = parseInt(parts[1], 10);
+    var y = parseInt(parts[2], 10);
+    if (!isNaN(m) && !isNaN(d) && !isNaN(y)) return new Date(y, m, d);
   }
-  var dt=new Date(s);
-  return isNaN(dt.getTime())?null:dt;
+  var dt = new Date(s);
+  return isNaN(dt.getTime()) ? null : dt;
 }
 
 function isActive(row) {
-  var s = get(row,"Client Status").toLowerCase();
+  var s = get(row, "Client Status").toLowerCase();
   return s.indexOf("active") !== -1 && s.indexOf("inactive") === -1;
 }
 
-// ── Analyze ───────────────────────────────────────────────────────────────────
 function analyze(rows, reportDate) {
   var ref = pd(reportDate) || new Date();
-  // prior month range
-  var priorStart = new Date(ref.getFullYear(), ref.getMonth()-1, 1);
+  var priorStart = new Date(ref.getFullYear(), ref.getMonth() - 1, 1);
   var priorEnd   = new Date(ref.getFullYear(), ref.getMonth(), 0);
+  var activeRows = rows.filter(function(r) { return isActive(r); });
 
-  var activeRows = rows.filter(function(r){ return isActive(r); });
-
-  // ── 1. Renewals ──
-  var renewalRows = activeRows.filter(function(r){
-    var d = pd(get(r,"Next Renewal Date"));
+  // 1. Renewals
+  var renewalRows = activeRows.filter(function(r) {
+    var d = pd(get(r, "Next Renewal Date"));
     return d && d < ref;
   });
   var renewalTypes = {};
-  renewalRows.forEach(function(r){
-    var policy = get(r,"Renewal Policy") || "";
+  renewalRows.forEach(function(r) {
+    var policy = get(r, "Renewal Policy") || "";
     var m = policy.match(/(\d+)\/(\d+)/);
-    var type = m ? m[1]+"mo" : "Other";
-    var isH = get(r,"Client Status").toLowerCase().indexOf("hosting") !== -1;
-    var key = isH ? type+" Hosting" : type;
-    renewalTypes[key] = (renewalTypes[key]||0)+1;
+    var type = m ? m[1] + "mo" : "Other";
+    var isH = get(r, "Client Status").toLowerCase().indexOf("hosting") !== -1;
+    var key = isH ? type + " Hosting" : type;
+    renewalTypes[key] = (renewalTypes[key] || 0) + 1;
   });
 
-  // ── 2. Terminations ──
-  var termRows = rows.filter(function(r){
-    var d = pd(get(r,"Effective Date of Termination"));
+  // 2. Terminations
+  var termRows = rows.filter(function(r) {
+    var d = pd(get(r, "Effective Date of Termination"));
     return d && d >= priorStart && d <= priorEnd;
   });
   var termTypes = {};
-  termRows.forEach(function(r){
-    var reason = get(r,"Termination Reason / Lost To") || get(r,"Client Status") || "Unknown";
-    termTypes[reason] = (termTypes[reason]||0)+1;
+  termRows.forEach(function(r) {
+    var reason = get(r, "Termination Reason / Lost To") || get(r, "Client Status") || "Unknown";
+    termTypes[reason] = (termTypes[reason] || 0) + 1;
   });
 
-  // ── 4. Support ──
-  var pastImplClients=[], onePerWeekClients=[], supportPkgClients=[], bankedClients=[], allSupportClients=[];
-  activeRows.forEach(function(r){
-    var s      = get(r,"Support Call Status").toLowerCase().trim();
-    var status = get(r,"Client Status").toLowerCase().trim();
-    var name   = get(r,"Organization Name");
-    var acctRep = get(r,"Primary Account Rep");
-    var implRep = get(r,"Primary Implementation Rep");
-    var dl     = pd(get(r,"Last Support Deadline Date"));
-    if (!s || s==="none") return;
-    // Total on support = any active status with non-None support
+  // 4. Support
+  var pastImplClients = [], onePerWeekClients = [], supportPkgClients = [], bankedClients = [], allSupportClients = [];
+  activeRows.forEach(function(r) {
+    var s       = get(r, "Support Call Status").toLowerCase().trim();
+    var status  = get(r, "Client Status").toLowerCase().trim();
+    var name    = get(r, "Organization Name");
+    var acctRep = get(r, "Primary Account Rep");
+    var implRep = get(r, "Primary Implementation Rep");
+    var dl      = pd(get(r, "Last Support Deadline Date"));
+    if (!s || s === "none") return;
     allSupportClients.push(name);
-    if (status==="active - implementation" && dl && dl<ref)
-      pastImplClients.push(name + " ("+get(r,"Last Support Deadline Date")+(implRep?" — "+implRep:"")+")");
-
-    // 1 time per week = Primary Implementation Rep
-    if (s.indexOf("1 time per week")!==-1||s.indexOf("one time per week")!==-1||s.indexOf("time per week")!==-1)
-      onePerWeekClients.push(name + (implRep?" — "+implRep:""));
-    // Support Package = Primary Account Rep
-    if (s.indexOf("support package")!==-1)
-      supportPkgClients.push(name + (acctRep?" — "+acctRep:""));
-    // Banked Hours = Primary Account Rep
-    if (s.indexOf("banked")!==-1)
-      bankedClients.push(name + (acctRep?" — "+acctRep:""));
+    if (status === "active - implementation" && dl && dl < ref)
+      pastImplClients.push(name + " (" + get(r, "Last Support Deadline Date") + (implRep ? " — " + implRep : "") + ")");
+    if (s.indexOf("time per week") !== -1)
+      onePerWeekClients.push(name + (implRep ? " (" + implRep + ")" : ""));
+    if (s.indexOf("support package") !== -1)
+      supportPkgClients.push(name + (acctRep ? " (" + acctRep + ")" : ""));
+    if (s.indexOf("banked") !== -1)
+      bankedClients.push(name + (acctRep ? " (" + acctRep + ")" : ""));
   });
 
-  // ── 5. Client Breakdown ──
-  var regular=[], hosting=[], impl=[];
-  var byProg={}, bySt={}, hProg={}, hSt={}, iProg={}, iSt={};
-  activeRows.forEach(function(r){
-    var s = get(r,"Client Status").toLowerCase().trim();
-    var isH = s.indexOf("hosting only")!==-1;
-    var isI = s.indexOf("implementation")!==-1;
+  // 5. Client Breakdown
+  var regular = [], hosting = [], impl = [];
+  var byProg = {}, bySt = {}, hProg = {}, hSt = {}, iProg = {}, iSt = {};
+  activeRows.forEach(function(r) {
+    var s   = get(r, "Client Status").toLowerCase().trim();
+    var isH = s.indexOf("hosting only") !== -1;
+    var isI = s.indexOf("implementation") !== -1;
     var isR = !isH && !isI;
     if (isR) regular.push(r);
     if (isH) hosting.push(r);
     if (isI) impl.push(r);
-    var progs  = get(r,"Program Type(s)").split(";");
-    var states = get(r,"State(s)").split(";");
-    progs.forEach(function(p){ p=p.trim(); if(!p) return;
-      if(isR) byProg[p]=(byProg[p]||0)+1;
-      if(isH) hProg[p]=(hProg[p]||0)+1;
-      if(isI) iProg[p]=(iProg[p]||0)+1;
+    var progs  = get(r, "Program Type(s)").split(";");
+    var states = get(r, "State(s)").split(";");
+    progs.forEach(function(p) {
+      p = p.trim(); if (!p) return;
+      if (isR) byProg[p] = (byProg[p] || 0) + 1;
+      if (isH) hProg[p]  = (hProg[p]  || 0) + 1;
+      if (isI) iProg[p]  = (iProg[p]  || 0) + 1;
     });
-    states.forEach(function(st){ st=st.trim(); if(!st) return;
-      if(isR) bySt[st]=(bySt[st]||0)+1;
-      if(isH) hSt[st]=(hSt[st]||0)+1;
-      if(isI) iSt[st]=(iSt[st]||0)+1;
+    states.forEach(function(st) {
+      st = st.trim(); if (!st) return;
+      if (isR) bySt[st]  = (bySt[st]  || 0) + 1;
+      if (isH) hSt[st]   = (hSt[st]   || 0) + 1;
+      if (isI) iSt[st]   = (iSt[st]   || 0) + 1;
     });
   });
 
-  // ── 8. Caseloads ──
-  var caseloads={};
-  activeRows.forEach(function(r){
-    var rep    = get(r,"Primary Account Rep") || "Unknown";
-    var status = get(r,"Client Status").toLowerCase();
-    if (!caseloads[rep]) caseloads[rep]={hosting:0,regular:0,handoff:0};
-    if (status.indexOf("hosting")!==-1) caseloads[rep].hosting++;
+  // 8. Caseloads
+  var caseloads = {};
+  activeRows.forEach(function(r) {
+    var rep    = get(r, "Primary Account Rep") || "Unknown";
+    var status = get(r, "Client Status").toLowerCase();
+    if (!caseloads[rep]) caseloads[rep] = {hosting: 0, regular: 0, handoff: 0};
+    if (status.indexOf("hosting") !== -1) caseloads[rep].hosting++;
     else caseloads[rep].regular++;
-    var ho = get(r,"Implementation Hand-Off Date");
-    if (ho) caseloads[rep].handoff++;
+    if (get(r, "Implementation Hand-Off Date")) caseloads[rep].handoff++;
   });
 
   return {
-    renewals:     {rows:renewalRows, types:renewalTypes},
-    terminations: {rows:termRows,    types:termTypes},
+    renewals:     {rows: renewalRows, types: renewalTypes},
+    terminations: {rows: termRows,    types: termTypes},
     support: {
-      total:allSupportClients.length,
-      pastImpl:pastImplClients.length, pastImplClients:pastImplClients,
-      onePerWeek:onePerWeekClients.length, onePerWeekClients:onePerWeekClients,
-      supportPkg:supportPkgClients.length, supportPkgClients:supportPkgClients,
-      banked:bankedClients.length,    bankedClients:bankedClients
+      total: allSupportClients.length,
+      pastImpl: pastImplClients.length, pastImplClients: pastImplClients,
+      onePerWeek: onePerWeekClients.length, onePerWeekClients: onePerWeekClients,
+      supportPkg: supportPkgClients.length, supportPkgClients: supportPkgClients,
+      banked: bankedClients.length, bankedClients: bankedClients
     },
-    clients:{
-      total:regular.length+impl.length, hosting:hosting.length, impl:impl.length,
-      byProg:byProg, bySt:bySt, hProg:hProg, hSt:hSt, iProg:iProg, iSt:iSt
+    clients: {
+      total: regular.length + impl.length, hosting: hosting.length, impl: impl.length,
+      byProg: byProg, bySt: bySt, hProg: hProg, hSt: hSt, iProg: iProg, iSt: iSt
     },
-    caseloads:caseloads
+    caseloads: caseloads
   };
 }
 
 // ── Render helpers ────────────────────────────────────────────────────────────
-function mkRow(l,v,indent){ return '<div class="row'+(indent?' indent':'')+'"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>'; }
-function sh(t){ return '<div class="subhead">'+t+'</div>'; }
-function mkSec(num,title,body){ return '<div class="sec"><div class="sec-hdr">'+title+'</div><div class="sec-body">'+body+'</div></div>'; }
-function objRows(obj){
-  var e=Object.keys(obj).map(function(k){return[k,obj[k]];}).sort(function(a,b){return b[1]-a[1];});
-  return e.length ? e.map(function(x){return mkRow(x[0],x[1],true);}).join("") : '<div class="none">—</div>';
+function mkRow(l, v, indent) {
+  return '<div class="row' + (indent ? ' indent' : '') + '"><span class="lbl">' + l + '</span><span class="val">' + v + '</span></div>';
 }
-function clientLines(arr){
-  return arr.length ? arr.map(function(n){
-    var parts = n.split(" (");
-    if (parts.length > 1) {
-      return '<div class="ci">• '+parts[0]+' <span>('+parts.slice(1).join(" (")+'</span></div>';
-    }
-    var dashIdx = n.indexOf(" — ");
-    if (dashIdx !== -1) {
-      return '<div class="ci">• '+n.substring(0,dashIdx)+' <span>('+n.substring(dashIdx+3)+')</span></div>';
-    }
-    return '<div class="ci">• '+n+'</div>';
-  }).join("") : '<div class="none">None</div>';
+function sh(t) { return '<div class="subhead">' + t + '</div>'; }
+function mkSec(title, body) {
+  return '<div class="sec"><div class="sec-hdr">' + title + '</div><div class="sec-body">' + body + '</div></div>';
+}
+function objRows(obj) {
+  var e = Object.keys(obj).map(function(k) { return [k, obj[k]]; }).sort(function(a, b) { return b[1] - a[1]; });
+  return e.length ? e.map(function(x) { return mkRow(x[0], x[1], true); }).join("") : '<div class="none">—</div>';
+}
+function clientLines(arr) {
+  if (!arr.length) return '<div class="none">None</div>';
+  return arr.map(function(n) {
+    var pi = n.indexOf(" (");
+    var di = n.indexOf(" — ");
+    if (pi !== -1) return '<div class="ci">• ' + n.substring(0, pi) + ' <span>' + n.substring(pi) + '</span></div>';
+    if (di !== -1) return '<div class="ci">• ' + n.substring(0, di) + ' <span>(' + n.substring(di + 3) + ')</span></div>';
+    return '<div class="ci">• ' + n + '</div>';
+  }).join("");
 }
 
-// ── Render summary ────────────────────────────────────────────────────────────
-function renderSummary(r){
-  var html="";
+function renderSummary(r) {
+  var html = "";
 
   // 1. Renewals
-  var rtypes = Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—";
-  var rclients = r.renewals.rows.length
-    ? r.renewals.rows.map(function(row){
-        var name    = get(row,"Organization Name");
-        var nrd     = get(row,"Next Renewal Date");
-        var rep     = get(row,"Primary Account Rep");
-        return '<div class="ci">• '+name+' <span>('+nrd+(rep?' — '+rep:'')+' )</span></div>';
+  var rtypes = Object.keys(r.renewals.types).map(function(k) { return r.renewals.types[k] + " " + k; }).join(", ") || "—";
+  var rClients = r.renewals.rows.length
+    ? r.renewals.rows.map(function(row) {
+        var name = get(row, "Organization Name");
+        var nrd  = get(row, "Next Renewal Date");
+        var rep  = get(row, "Primary Account Rep");
+        return '<div class="ci">• ' + name + ' <span>(' + nrd + (rep ? ' — ' + rep : '') + ')</span></div>';
       }).join("")
     : '<div class="none">None for this period</div>';
-  html += mkSec(1,"Renewals", mkRow("Total Clients Renewed",r.renewals.rows.length+" Clients")+mkRow("Renewal Type(s)",rtypes)+sh("Renewal Clients")+rclients);
+  html += mkSec("Renewals", mkRow("Total Clients Renewed", r.renewals.rows.length + " Clients") + mkRow("Renewal Type(s)", rtypes) + sh("Renewal Clients") + rClients);
 
   // 2. Terminations
-  var ttypes = Object.keys(r.terminations.types).map(function(k){return r.terminations.types[k]+" "+k;}).join(", ")||"NA";
-  var tclients = r.terminations.rows.length
-    ? r.terminations.rows.map(function(row){
-        var name   = get(row,"Organization Name");
-        var tdate  = get(row,"Effective Date of Termination");
-        var reason = get(row,"Termination Reason / Lost To") || get(row,"Client Status");
-        var rep    = get(row,"Primary Account Rep");
-        return '<div class="ci">• '+name+' <span>('+tdate+(reason?' — '+reason:'')+(rep?' — '+rep:'')+' )</span></div>';
+  var ttypes = Object.keys(r.terminations.types).map(function(k) { return r.terminations.types[k] + " " + k; }).join(", ") || "NA";
+  var tClients = r.terminations.rows.length
+    ? r.terminations.rows.map(function(row) {
+        var name   = get(row, "Organization Name");
+        var tdate  = get(row, "Effective Date of Termination");
+        var reason = get(row, "Termination Reason / Lost To") || get(row, "Client Status");
+        var rep    = get(row, "Primary Account Rep");
+        return '<div class="ci">• ' + name + ' <span>(' + tdate + (reason ? ' — ' + reason : '') + (rep ? ' — ' + rep : '') + ')</span></div>';
       }).join("")
     : '<div class="none">None for this period</div>';
-  html += mkSec(2,"Terminations", mkRow("Total Clients Terminated",r.terminations.rows.length)+mkRow("Termination Type(s)",ttypes)+sh("Termination Clients")+tclients);
+  html += mkSec("Terminations", mkRow("Total Clients Terminated", r.terminations.rows.length) + mkRow("Termination Type(s)", ttypes) + sh("Termination Clients") + tClients);
 
   // 4. Support
-  html += mkSec(4,"Support",
-    mkRow("Total Clients on Support",r.support.total)+
-    mkRow("Clients Past Implementation Support Deadline",r.support.pastImpl)+
-    (r.support.pastImpl>0 ? clientLines(r.support.pastImplClients) : "")+
-    sh("1 Time Per Week ("+r.support.onePerWeek+")")+clientLines(r.support.onePerWeekClients)+
-    sh("Support Package ("+r.support.supportPkg+")")+clientLines(r.support.supportPkgClients)+
-    sh("Banked Hours ("+r.support.banked+")")+clientLines(r.support.bankedClients));
+  html += mkSec("Support",
+    mkRow("Total Clients on Support", r.support.total) +
+    mkRow("Clients Past Implementation Support Deadline", r.support.pastImpl) +
+    (r.support.pastImpl > 0 ? clientLines(r.support.pastImplClients) : "") +
+    sh("1 Time Per Week (" + r.support.onePerWeek + ")") + clientLines(r.support.onePerWeekClients) +
+    sh("Support Package (" + r.support.supportPkg + ")") + clientLines(r.support.supportPkgClients) +
+    sh("Banked Hours (" + r.support.banked + ")") + clientLines(r.support.bankedClients));
 
   // 5. Client Breakdown
-  html += mkSec(5,"Client Breakdown",
-    mkRow("Total Clients - Active",r.clients.total)+
-    mkRow("Total Clients - Hosting",r.clients.hosting)+
-    mkRow("Total Clients - Implementations",r.clients.impl)+
-    sh("Active by Program")+objRows(r.clients.byProg)+
-    sh("Active by State")+objRows(r.clients.bySt)+
-    sh("Hosting by Program")+objRows(r.clients.hProg)+
-    sh("Hosting by State")+objRows(r.clients.hSt)+
-    sh("Implementations by Program")+objRows(r.clients.iProg)+
-    sh("Implementations by State")+objRows(r.clients.iSt));
+  html += mkSec("Client Breakdown",
+    mkRow("Total Clients - Active", r.clients.total) +
+    mkRow("Total Clients - Hosting", r.clients.hosting) +
+    mkRow("Total Clients - Implementations", r.clients.impl) +
+    sh("Active by Program") + objRows(r.clients.byProg) +
+    sh("Active by State") + objRows(r.clients.bySt) +
+    sh("Hosting by Program") + objRows(r.clients.hProg) +
+    sh("Hosting by State") + objRows(r.clients.hSt) +
+    sh("Implementations by Program") + objRows(r.clients.iProg) +
+    sh("Implementations by State") + objRows(r.clients.iSt));
 
   // 8. Caseloads
-  var crows = Object.keys(r.caseloads).sort().map(function(rep){
-    var c=r.caseloads[rep];
-    return mkRow(rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");
+  var cRows = Object.keys(r.caseloads).sort().map(function(rep) {
+    var c = r.caseloads[rep];
+    return mkRow(rep, (c.hosting > 0 ? c.hosting + " Hosting, " : "") + c.regular + " Regular, " + c.handoff + " for Handoff");
   }).join("");
-  html += mkSec(8,"Caseloads",crows);
+  html += mkSec("Caseloads", cRows);
 
   return html;
 }
 
-// ── Generate / Reset ──────────────────────────────────────────────────────────
-function generate(){
-  document.getElementById("errorMsg").textContent="";
-  var csv=document.getElementById("csvInput").value;
-  var rd=document.getElementById("reportDate").value.trim();
-  if (!csv.trim()){document.getElementById("errorMsg").textContent="⚠ Please paste your data first.";return;}
-  if (!rd){document.getElementById("errorMsg").textContent="⚠ Please enter a report date.";return;}
-  var parsed=parseData(csv);
-  if (!parsed.rows.length){document.getElementById("errorMsg").textContent="⚠ No data rows found — make sure you include the header row.";return;}
-  G=analyze(parsed.rows,rd); G_date=rd; G_rows=parsed.rows.length;
-  document.getElementById("summaryTitle").innerHTML='Summary — '+rd+' <small style="font-size:12px;color:#888;margin-left:8px;">'+G_rows+' rows processed</small>';
-  document.getElementById("summaryContent").innerHTML=renderSummary(G);
-  document.getElementById("inputPanel").style.display="none";
-  document.getElementById("summaryPanel").style.display="block";
-  window.scrollTo(0,0);
+function generate() {
+  document.getElementById("errorMsg").textContent = "";
+  var csv = document.getElementById("csvInput").value;
+  var rd  = document.getElementById("reportDate").value.trim();
+  if (!csv.trim()) { document.getElementById("errorMsg").textContent = "⚠ Please paste your data first."; return; }
+  if (!rd) { document.getElementById("errorMsg").textContent = "⚠ Please enter a report date."; return; }
+  var parsed = parseData(csv);
+  if (!parsed.rows.length) { document.getElementById("errorMsg").textContent = "⚠ No data rows found — make sure you include the header row."; return; }
+  G = analyze(parsed.rows, rd);
+  G_date = rd;
+  G_rows = parsed.rows.length;
+  document.getElementById("summaryTitle").innerHTML = "Summary — " + rd + ' <small style="font-size:12px;color:#888;margin-left:8px;">' + G_rows + " rows processed</small>";
+  document.getElementById("summaryContent").innerHTML = renderSummary(G);
+  document.getElementById("inputPanel").style.display = "none";
+  document.getElementById("summaryPanel").style.display = "block";
+  window.scrollTo(0, 0);
 }
 
-function reset(){
-  G=null; G_date=""; G_rows=0;
-  document.getElementById("csvInput").value="";
-  document.getElementById("reportDate").value="";
-  document.getElementById("detectHint").textContent="";
-  document.getElementById("errorMsg").textContent="";
-  document.getElementById("inputPanel").style.display="block";
-  document.getElementById("summaryPanel").style.display="none";
+function reset() {
+  G = null; G_date = ""; G_rows = 0;
+  document.getElementById("csvInput").value = "";
+  document.getElementById("reportDate").value = "";
+  document.getElementById("detectHint").textContent = "";
+  document.getElementById("errorMsg").textContent = "";
+  document.getElementById("inputPanel").style.display = "block";
+  document.getElementById("summaryPanel").style.display = "none";
 }
 
-document.addEventListener("DOMContentLoaded",function(){
-  document.getElementById("csvInput").addEventListener("input",function(){
-    var p=parseData(this.value);
-    document.getElementById("detectHint").innerHTML=p.rows.length?'<span class="ok">✓ '+p.rows.length+' rows detected</span>':"";
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById("csvInput").addEventListener("input", function() {
+    var p = parseData(this.value);
+    document.getElementById("detectHint").innerHTML = p.rows.length ? '<span class="ok">✓ ' + p.rows.length + " rows detected</span>" : "";
   });
 });
 
 // ── Exports ───────────────────────────────────────────────────────────────────
-function dl(content,filename,mime){
-  var blob=new Blob([content],{type:mime});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=filename; a.click();
+function dl(content, filename, mime) {
+  var blob = new Blob([content], {type: mime});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
-function safe(){return G_date.replace(/\//g,"-");}
 
-function buildText(){
-  var r=G, lines=["CS DEPARTMENT SUMMARY — "+G_date,"=".repeat(50),""];
-  lines.push("1. RENEWALS","—".repeat(30));
-  lines.push("Total Clients Renewed: "+r.renewals.rows.length);
-  lines.push("Renewal Type(s): "+Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", "));
-  r.renewals.rows.forEach(function(row){lines.push("  • "+get(row,"Organization Name")+" ("+get(row,"Next Renewal Date")+" — "+get(row,"Primary Account Rep")+")");});
+function safe() { return G_date.replace(/\//g, "-"); }
+
+function buildText() {
+  var r = G;
+  var lines = ["CS DEPARTMENT SUMMARY — " + G_date, "==================================================", ""];
+  lines.push("RENEWALS", "------------------------------");
+  lines.push("Total Clients Renewed: " + r.renewals.rows.length);
+  lines.push("Renewal Type(s): " + (Object.keys(r.renewals.types).map(function(k) { return r.renewals.types[k] + " " + k; }).join(", ") || "—"));
+  lines.push("Renewal Clients:");
+  r.renewals.rows.forEach(function(row) { lines.push("  • " + get(row, "Organization Name") + " (" + get(row, "Next Renewal Date") + " — " + get(row, "Primary Account Rep") + ")"); });
   lines.push("");
-  lines.push("2. TERMINATIONS","—".repeat(30));
-  lines.push("Total Terminated: "+r.terminations.rows.length);
-  lines.push("Type(s): "+Object.keys(r.terminations.types).map(function(k){return r.terminations.types[k]+" "+k;}).join(", ")||"NA");
-  r.terminations.rows.forEach(function(row){lines.push("  • "+get(row,"Organization Name")+" ("+get(row,"Effective Date of Termination")+" — "+(get(row,"Termination Reason / Lost To")||get(row,"Client Status"))+" — "+get(row,"Primary Account Rep")+")");});
+  lines.push("TERMINATIONS", "------------------------------");
+  lines.push("Total Terminated: " + r.terminations.rows.length);
+  lines.push("Type(s): " + (Object.keys(r.terminations.types).map(function(k) { return r.terminations.types[k] + " " + k; }).join(", ") || "NA"));
+  r.terminations.rows.forEach(function(row) { lines.push("  • " + get(row, "Organization Name") + " (" + get(row, "Effective Date of Termination") + " — " + (get(row, "Termination Reason / Lost To") || get(row, "Client Status")) + " — " + get(row, "Primary Account Rep") + ")"); });
   lines.push("");
-  lines.push("4. SUPPORT","—".repeat(30));
-  lines.push("Total on Support: "+r.support.total);
-  lines.push("Past Implementation Support Deadline: "+r.support.pastImpl);
-  lines.push("1 Time Per Week ("+r.support.onePerWeek+"):"); r.support.onePerWeekClients.forEach(function(n){lines.push("  • "+n);});
-  lines.push("Support Package ("+r.support.supportPkg+"):"); r.support.supportPkgClients.forEach(function(n){lines.push("  • "+n);});
-  lines.push("Banked Hours ("+r.support.banked+"):"); r.support.bankedClients.forEach(function(n){lines.push("  • "+n);});
+  lines.push("SUPPORT", "------------------------------");
+  lines.push("Total on Support: " + r.support.total);
+  lines.push("Past Impl Deadline: " + r.support.pastImpl);
+  lines.push("1 Time Per Week (" + r.support.onePerWeek + "):"); r.support.onePerWeekClients.forEach(function(n) { lines.push("  • " + n); });
+  lines.push("Support Package (" + r.support.supportPkg + "):"); r.support.supportPkgClients.forEach(function(n) { lines.push("  • " + n); });
+  lines.push("Banked Hours (" + r.support.banked + "):"); r.support.bankedClients.forEach(function(n) { lines.push("  • " + n); });
   lines.push("");
-  lines.push("5. CLIENT BREAKDOWN","—".repeat(30));
-  lines.push("Total Active: "+r.clients.total+" | Hosting: "+r.clients.hosting+" | Implementations: "+r.clients.impl);
-  lines.push("By Program:"); Object.keys(r.clients.byProg).forEach(function(k){lines.push("  "+k+": "+r.clients.byProg[k]);});
-  lines.push("By State:"); Object.keys(r.clients.bySt).forEach(function(k){lines.push("  "+k+": "+r.clients.bySt[k]);});
+  lines.push("CLIENT BREAKDOWN", "------------------------------");
+  lines.push("Total Active: " + r.clients.total + "  |  Hosting: " + r.clients.hosting + "  |  Implementations: " + r.clients.impl);
+  lines.push("By Program:"); Object.keys(r.clients.byProg).forEach(function(k) { lines.push("  " + k + ": " + r.clients.byProg[k]); });
+  lines.push("By State:"); Object.keys(r.clients.bySt).forEach(function(k) { lines.push("  " + k + ": " + r.clients.bySt[k]); });
   lines.push("");
-  lines.push("8. CASELOADS","—".repeat(30));
-  Object.keys(r.caseloads).sort().forEach(function(rep){var c=r.caseloads[rep];lines.push(rep+": "+(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");});
+  lines.push("CASELOADS", "------------------------------");
+  Object.keys(r.caseloads).sort().forEach(function(rep) { var c = r.caseloads[rep]; lines.push(rep + ": " + (c.hosting > 0 ? c.hosting + " Hosting, " : "") + c.regular + " Regular, " + c.handoff + " for Handoff"); });
   return lines.join("\n");
 }
 
-function buildTSV(){
-  var r=G, rows=[["Section","Item","Value","Detail"]];
-  rows.push(["","Report Date",G_date,""]);
-  rows.push(["1. Renewals","Total Renewed",r.renewals.rows.length,""]);
-  rows.push(["","Renewal Types",Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—",""]);
-  r.renewals.rows.forEach(function(row){rows.push(["","Client",get(row,"Organization Name"),get(row,"Next Renewal Date")+" — "+get(row,"Primary Account Rep")]);});
-  rows.push(["2. Terminations","Total Terminated",r.terminations.rows.length,""]);
-  rows.push(["","Types",Object.keys(r.terminations.types).map(function(k){return r.terminations.types[k]+" "+k;}).join(", ")||"NA",""]);
-  r.terminations.rows.forEach(function(row){rows.push(["","Client",get(row,"Organization Name"),get(row,"Effective Date of Termination")+" — "+(get(row,"Termination Reason / Lost To")||get(row,"Client Status"))]);});
-  rows.push(["4. Support","Total on Support",r.support.total,""]);
-  rows.push(["","Past Impl Deadline",r.support.pastImpl,""]);
-  r.support.onePerWeekClients.forEach(function(n){rows.push(["","1x/Week",n,""]);});
-  r.support.supportPkgClients.forEach(function(n){rows.push(["","Support Package",n,""]);});
-  r.support.bankedClients.forEach(function(n){rows.push(["","Banked Hours",n,""]);});
-  rows.push(["5. Clients","Total Active",r.clients.total,""]);
-  rows.push(["","Hosting",r.clients.hosting,""]);
-  rows.push(["","Implementations",r.clients.impl,""]);
-  Object.keys(r.clients.byProg).forEach(function(k){rows.push(["","Program: "+k,r.clients.byProg[k],""]);});
-  Object.keys(r.clients.bySt).forEach(function(k){rows.push(["","State: "+k,r.clients.bySt[k],""]);});
-  Object.keys(r.caseloads).sort().forEach(function(rep){var c=r.caseloads[rep];rows.push(["8. Caseloads",rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff",""]);});
-  return rows.map(function(r){return r.join("\t");}).join("\n");
+function buildTSV() {
+  var r = G;
+  var rows = [["Section", "Item", "Value", "Detail"], ["", "Report Date", G_date, ""]];
+  rows.push(["Renewals", "Total Renewed", r.renewals.rows.length, ""]);
+  rows.push(["", "Renewal Types", Object.keys(r.renewals.types).map(function(k) { return r.renewals.types[k] + " " + k; }).join(", ") || "—", ""]);
+  r.renewals.rows.forEach(function(row) { rows.push(["", "Client", get(row, "Organization Name"), get(row, "Next Renewal Date") + " — " + get(row, "Primary Account Rep")]); });
+  rows.push(["Terminations", "Total Terminated", r.terminations.rows.length, ""]);
+  rows.push(["", "Types", Object.keys(r.terminations.types).map(function(k) { return r.terminations.types[k] + " " + k; }).join(", ") || "NA", ""]);
+  r.terminations.rows.forEach(function(row) { rows.push(["", "Client", get(row, "Organization Name"), get(row, "Effective Date of Termination") + " — " + (get(row, "Termination Reason / Lost To") || get(row, "Client Status"))]); });
+  rows.push(["Support", "Total on Support", r.support.total, ""]);
+  rows.push(["", "Past Impl Deadline", r.support.pastImpl, ""]);
+  r.support.onePerWeekClients.forEach(function(n) { rows.push(["", "1x/Week", n, ""]); });
+  r.support.supportPkgClients.forEach(function(n) { rows.push(["", "Support Package", n, ""]); });
+  r.support.bankedClients.forEach(function(n) { rows.push(["", "Banked Hours", n, ""]); });
+  rows.push(["Client Breakdown", "Total Active", r.clients.total, ""]);
+  rows.push(["", "Hosting", r.clients.hosting, ""]);
+  rows.push(["", "Implementations", r.clients.impl, ""]);
+  Object.keys(r.clients.byProg).forEach(function(k) { rows.push(["", "Program: " + k, r.clients.byProg[k], ""]); });
+  Object.keys(r.clients.bySt).forEach(function(k) { rows.push(["", "State: " + k, r.clients.bySt[k], ""]); });
+  Object.keys(r.caseloads).sort().forEach(function(rep) { var c = r.caseloads[rep]; rows.push(["Caseloads", rep, (c.hosting > 0 ? c.hosting + " Hosting, " : "") + c.regular + " Regular, " + c.handoff + " for Handoff", ""]); });
+  return rows.map(function(r) { return r.join("\t"); }).join("\n");
 }
 
-function buildCSV(){
-  var tsv=buildTSV();
-  return tsv.split("\n").map(function(line){return line.split("\t").map(function(c){return'"'+c.replace(/"/g,'""')+'"';}).join(",");}).join("\n");
+function buildCSV() {
+  return buildTSV().split("\n").map(function(line) {
+    return line.split("\t").map(function(c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(",");
+  }).join("\n");
 }
 
-function buildPrintHTML(){
-  var r=G;
-  function tr(l,v,i){return "<tr"+(i?' class="ind"':'')+"><td>"+l+"</td><td>"+v+"</td></tr>";}
-  function otr(obj){var e=Object.keys(obj).map(function(k){return[k,obj[k]];}).sort(function(a,b){return b[1]-a[1];});return e.map(function(x){return tr(x[0],x[1],true);}).join("")||"<tr><td colspan='2' style='color:#aaa'>—</td></tr>";}
-  function sh2(t){return "<div class='sh'>"+t+"</div>";}
-  var rtypes=Object.keys(r.renewals.types).map(function(k){return r.renewals.types[k]+" "+k;}).join(", ")||"—";
-  var ttypes=Object.keys(r.terminations.types).map(function(k){return r.terminations.types[k]+" "+k;}).join(", ")||"NA";
-  var sec1="<table>"+tr("Total Clients Renewed",r.renewals.rows.length+" Clients")+tr("Renewal Type(s)",rtypes)+"</table>"+sh2("Renewal Clients")+
-    (r.renewals.rows.length?r.renewals.rows.map(function(row){return "<div class='cl'>• "+get(row,"Organization Name")+" <span>("+get(row,"Next Renewal Date")+(get(row,"Primary Account Rep")?" — "+get(row,"Primary Account Rep"):"")+")";}).join(""):"<div class='cl' style='color:#aaa'>None</div>");
-  var sec2="<table>"+tr("Total Terminated",r.terminations.rows.length)+tr("Type(s)",ttypes)+"</table>"+sh2("Termination Clients")+
-    (r.terminations.rows.length?r.terminations.rows.map(function(row){return "<div class='cl'>• "+get(row,"Organization Name")+" <span>("+get(row,"Effective Date of Termination")+(get(row,"Termination Reason / Lost To")?" — "+get(row,"Termination Reason / Lost To"):"")+( get(row,"Primary Account Rep")?" — "+get(row,"Primary Account Rep"):"")+")";}).join(""):"<div class='cl' style='color:#aaa'>None</div>");
-  var sec4="<table>"+tr("Total on Support",r.support.total)+tr("Past Impl Deadline",r.support.pastImpl)+"</table>"+
-    sh2("1 Time Per Week ("+r.support.onePerWeek+")")+(r.support.onePerWeekClients.length?r.support.onePerWeekClients.map(function(n){return "<div class='cl'>• "+n+"</div>";}).join(""):"<div class='cl' style='color:#aaa'>None</div>")+
-    sh2("Support Package ("+r.support.supportPkg+")")+(r.support.supportPkgClients.length?r.support.supportPkgClients.map(function(n){return "<div class='cl'>• "+n+"</div>";}).join(""):"<div class='cl' style='color:#aaa'>None</div>")+
-    sh2("Banked Hours ("+r.support.banked+")")+(r.support.bankedClients.length?r.support.bankedClients.map(function(n){return "<div class='cl'>• "+n+"</div>";}).join(""):"<div class='cl' style='color:#aaa'>None</div>");
-  var sec5="<table>"+tr("Total Active",r.clients.total)+tr("Hosting",r.clients.hosting)+tr("Implementations",r.clients.impl)+"</table>"+
-    sh2("By Program")+"<table>"+otr(r.clients.byProg)+"</table>"+sh2("By State")+"<table>"+otr(r.clients.bySt)+"</table>"+
-    sh2("Hosting by Program")+"<table>"+otr(r.clients.hProg)+"</table>"+sh2("Implementations by Program")+"<table>"+otr(r.clients.iProg)+"</table>";
-  var sec8=Object.keys(r.caseloads).sort().map(function(rep){var c=r.caseloads[rep];return tr(rep,(c.hosting>0?c.hosting+" Hosting, ":"")+c.regular+" Regular, "+c.handoff+" for Handoff");}).join("");
-  
-  return "<!DOCTYPE html><html><head><meta charset='utf-8'><title>CS Summary "+G_date+"</title><style>"+
-    "body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#111;}"+
-    "h1{color:#1a2e5a;font-size:22px;margin-bottom:4px;}p{color:#888;font-size:13px;margin-bottom:20px;}"+
-    ".s{margin-bottom:20px;border:1px solid #dde;border-radius:8px;overflow:hidden;}"+
-    ".sh2{background:#1a2e5a;color:#fff;padding:10px 16px;font-weight:700;font-size:14px;}"+
-    ".sb{padding:14px 16px;}table{width:100%;border-collapse:collapse;}"+
-    "tr{border-bottom:1px solid #f0f0f0;}td{padding:5px 4px;font-size:13px;}"+
-    "td:first-child{color:#444;width:65%;}td:last-child{font-weight:700;text-align:right;}"+
-    "tr.ind td:first-child{padding-left:20px;color:#666;}"+
-    ".sh{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;}"+
-    ".cl{font-size:13px;padding:2px 0;border-bottom:1px solid #f5f5f5;}.cl span{color:#999;}"+
-    "button{margin-top:16px;padding:10px 24px;background:#1a2e5a;color:#fff;border:none;border-radius:7px;font-size:14px;cursor:pointer;}"+
-    "@media print{button{display:none;}}</style></head><body>"+
-    "<h1>CS Department Summary</h1><p>Report Date: "+G_date+" | Generated: "+new Date().toLocaleDateString()+"</p><button onclick='window.print()'>🖨 Print / Save as PDF</button><br><br>"+
-    wrap(1,"Renewals",sec1)+wrap(2,"Terminations",sec2)+wrap(4,"Support",sec4)+wrap(5,"Client Breakdown",sec5)+
-    wrap(8,"Caseloads","<table>"+sec8+"</table>")+
-    "<button onclick='window.print()'>🖨 Print / Save as PDF</button></body></html>";
-}
+function buildPrintHTML() {
+  var r = G;
+  var H = [];
+  H.push('<!DOCTYPE html><html><head><meta charset="utf-8"><title>CS Summary ' + G_date + '</title>');
+  H.push('<style>');
+  H.push('* { box-sizing: border-box; margin: 0; padding: 0; }');
+  H.push('body { font-family: system-ui, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #111; }');
+  H.push('h1 { color: #1a2e5a; font-size: 22px; margin-bottom: 4px; }');
+  H.push('.sub { color: #888; font-size: 13px; margin-bottom: 16px; display: block; }');
+  H.push('.print-btn { display: block; margin-bottom: 24px; padding: 10px 24px; background: #1a2e5a; color: #fff; border: none; border-radius: 7px; font-size: 14px; cursor: pointer; }');
+  H.push('.sec { display: block; width: 100%; margin-bottom: 24px; border: 1px solid #dde; border-radius: 8px; }');
+  H.push('.sec-hdr { display: block; width: 100%; background: #1a2e5a; color: #fff; padding: 10px 16px; font-weight: 700; font-size: 14px; border-radius: 7px 7px 0 0; }');
+  H.push('.sec-body { display: block; width: 100%; padding: 14px 16px; }');
+  H.push('.prow { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }');
+  H.push('.prow .pl { font-size: 13px; color: #222; }');
+  H.push('.prow .pv { font-weight: 700; font-size: 13px; text-align: right; padding-left: 16px; }');
+  H.push('.sh { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 10px 0 4px; display: block; }');
+  H.push('.cl { font-size: 13px; padding: 3px 0; border-bottom: 1px solid #f5f5f5; display: block; }');
+  H.push('.cl span { color: #999; }');
+  H.push('.none { font-size: 13px; color: #aaa; padding: 3px 0; display: block; }');
+  H.push('@media print { .print-btn { display: none; } }');
+  H.push('</style></head><body>');
+  H.push('<h1>CS Department Summary</h1>');
+  H.push('<span class="sub">Report Date: ' + G_date + ' &nbsp;|&nbsp; Generated: ' + new Date().toLocaleDateString() + '</span>');
+  H.push('<button class="print-btn" onclick="window.print()">&#128424; Print / Save as PDF</button>');
 
-function downloadText(){ dl(buildText(),"CS-Summary-"+safe()+".txt","text/plain"); }
-function downloadTable(){ dl(buildTSV(),"CS-Summary-"+safe()+".tsv","text/tab-separated-values"); }
-function downloadCSV(){ dl(buildCSV(),"CS-Summary-"+safe()+".csv","text/csv"); }
-function downloadPDF(){
-  try {
-    var html = buildPrintHTML();
-    var blob = new Blob([html], {type:"text/html"});
-    var url  = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch(e) {
-    alert("Error generating PDF page: " + e.message);
+  function pRow(l, v) { return '<div class="prow"><span class="pl">' + l + '</span><span class="pv">' + v + '</span></div>'; }
+  function pSh(t) { return '<div class="sh">' + t + '</div>'; }
+  function pClients(arr) {
+    if (!arr.length) return '<div class="none">None</div>';
+    return arr.map(function(n) {
+      var pi = n.indexOf(" (");
+      var di = n.indexOf(" — ");
+      if (pi !== -1) return '<div class="cl">&#8226; ' + n.substring(0, pi) + ' <span>' + n.substring(pi) + '</span></div>';
+      if (di !== -1) return '<div class="cl">&#8226; ' + n.substring(0, di) + ' <span>(' + n.substring(di + 3) + ')</span></div>';
+      return '<div class="cl">&#8226; ' + n + '</div>';
+    }).join("");
   }
+  function pObjRows(obj) {
+    var e = Object.keys(obj).map(function(k) { return [k, obj[k]]; }).sort(function(a, b) { return b[1] - a[1]; });
+    if (!e.length) return '<div class="none">—</div>';
+    return e.map(function(x) { return pRow(x[0], x[1]); }).join("");
+  }
+
+  // 1. Renewals
+  var rtypes = Object.keys(r.renewals.types).map(function(k) { return r.renewals.types[k] + " " + k; }).join(", ") || "—";
+  H.push('<div class="sec">');
+  H.push('<div class="sec-hdr">Renewals</div>');
+  H.push('<div class="sec-body">');
+  H.push(pRow("Total Clients Renewed", r.renewals.rows.length + " Clients"));
+  H.push(pRow("Renewal Type(s)", rtypes));
+  H.push(pSh("Renewal Clients"));
+  if (r.renewals.rows.length) {
+    r.renewals.rows.forEach(function(row) {
+      var name = get(row, "Organization Name");
+      var nrd  = get(row, "Next Renewal Date");
+      var rep  = get(row, "Primary Account Rep");
+      H.push('<div class="cl">&#8226; ' + name + ' <span>(' + nrd + (rep ? ' &mdash; ' + rep : '') + ')</span></div>');
+    });
+  } else { H.push('<div class="none">None for this period</div>'); }
+  H.push('</div>');
+  H.push('</div>');
+
+  // 2. Terminations
+  var ttypes = Object.keys(r.terminations.types).map(function(k) { return r.terminations.types[k] + " " + k; }).join(", ") || "NA";
+  H.push('<div class="sec">');
+  H.push('<div class="sec-hdr">Terminations</div>');
+  H.push('<div class="sec-body">');
+  H.push(pRow("Total Clients Terminated", r.terminations.rows.length));
+  H.push(pRow("Termination Type(s)", ttypes));
+  H.push(pSh("Termination Clients"));
+  if (r.terminations.rows.length) {
+    r.terminations.rows.forEach(function(row) {
+      var name   = get(row, "Organization Name");
+      var tdate  = get(row, "Effective Date of Termination");
+      var reason = get(row, "Termination Reason / Lost To") || get(row, "Client Status");
+      var rep    = get(row, "Primary Account Rep");
+      H.push('<div class="cl">&#8226; ' + name + ' <span>(' + tdate + (reason ? ' &mdash; ' + reason : '') + (rep ? ' &mdash; ' + rep : '') + ')</span></div>');
+    });
+  } else { H.push('<div class="none">None for this period</div>'); }
+  H.push('</div>');
+  H.push('</div>');
+
+  // 4. Support
+  H.push('<div class="sec">');
+  H.push('<div class="sec-hdr">Support</div>');
+  H.push('<div class="sec-body">');
+  H.push(pRow("Total Clients on Support", r.support.total));
+  H.push(pRow("Clients Past Implementation Support Deadline", r.support.pastImpl));
+  if (r.support.pastImpl > 0) { H.push(pClients(r.support.pastImplClients)); }
+  H.push(pSh("1 Time Per Week (" + r.support.onePerWeek + ")"));
+  H.push(pClients(r.support.onePerWeekClients));
+  H.push(pSh("Support Package (" + r.support.supportPkg + ")"));
+  H.push(pClients(r.support.supportPkgClients));
+  H.push(pSh("Banked Hours (" + r.support.banked + ")"));
+  H.push(pClients(r.support.bankedClients));
+  H.push('</div>');
+  H.push('</div>');
+
+  // 5. Client Breakdown
+  H.push('<div class="sec">');
+  H.push('<div class="sec-hdr">Client Breakdown</div>');
+  H.push('<div class="sec-body">');
+  H.push(pRow("Total Clients - Active", r.clients.total));
+  H.push(pRow("Total Clients - Hosting", r.clients.hosting));
+  H.push(pRow("Total Clients - Implementations", r.clients.impl));
+  H.push(pSh("Active by Program")); H.push(pObjRows(r.clients.byProg));
+  H.push(pSh("Active by State")); H.push(pObjRows(r.clients.bySt));
+  H.push(pSh("Hosting by Program")); H.push(pObjRows(r.clients.hProg));
+  H.push(pSh("Hosting by State")); H.push(pObjRows(r.clients.hSt));
+  H.push(pSh("Implementations by Program")); H.push(pObjRows(r.clients.iProg));
+  H.push(pSh("Implementations by State")); H.push(pObjRows(r.clients.iSt));
+  H.push('</div>');
+  H.push('</div>');
+
+  // 8. Caseloads
+  H.push('<div class="sec">');
+  H.push('<div class="sec-hdr">Caseloads</div>');
+  H.push('<div class="sec-body">');
+  Object.keys(r.caseloads).sort().forEach(function(rep) {
+    var c = r.caseloads[rep];
+    H.push(pRow(rep, (c.hosting > 0 ? c.hosting + " Hosting, " : "") + c.regular + " Regular, " + c.handoff + " for Handoff"));
+  });
+  H.push('</div>');
+  H.push('</div>');
+
+  H.push('</body></html>');
+  return H.join("\n");
+}
+
+function downloadText()  { dl(buildText(),  "CS-Summary-" + safe() + ".txt",  "text/plain"); }
+function downloadTable() { dl(buildTSV(),   "CS-Summary-" + safe() + ".tsv",  "text/tab-separated-values"); }
+function downloadCSV()   { dl(buildCSV(),   "CS-Summary-" + safe() + ".csv",  "text/csv"); }
+function downloadPDF() {
+  var html = buildPrintHTML();
+  var blob = new Blob([html], {type: "text/html"});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  a.href   = url;
+  a.target = "_blank";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
 }
 </script>
 </body>
