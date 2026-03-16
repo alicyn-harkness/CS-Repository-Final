@@ -481,7 +481,7 @@ function buildPrintHTML(){
     ".cl{font-size:13px;padding:2px 0;border-bottom:1px solid #f5f5f5;}.cl span{color:#999;}"+
     "button{margin-top:16px;padding:10px 24px;background:#1a2e5a;color:#fff;border:none;border-radius:7px;font-size:14px;cursor:pointer;}"+
     "@media print{button{display:none;}}</style></head><body>"+
-    "<h1>CS Department Summary</h1><p>Report Date: "+G_date+" | Generated: "+new Date().toLocaleDateString()+"</p>"+
+    "<h1>CS Department Summary</h1><p>Report Date: "+G_date+" | Generated: "+new Date().toLocaleDateString()+"</p><button onclick='window.print()'>🖨 Print / Save as PDF</button><br><br>"+
     wrap(1,"Renewals",sec1)+wrap(2,"Terminations",sec2)+wrap(4,"Support",sec4)+wrap(5,"Client Breakdown",sec5)+
     wrap(8,"Caseloads","<table>"+sec8+"</table>")+
     "<button onclick='window.print()'>🖨 Print / Save as PDF</button></body></html>";
